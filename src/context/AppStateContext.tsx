@@ -79,6 +79,8 @@ export interface Party {
   id: string;
   name: string;
   phone: string;
+  address?: string;
+  openingBalance?: number;
   entries: Entry[];
 }
 
@@ -218,9 +220,9 @@ interface AppStateContextProps {
   cancelOrder: (id: string) => void;
   adjustStock: (productId: string, delta: number) => void;
   addProduct: (product: Omit<Product, "sold" | "views">) => void;
-  addParty: (name: string, phone: string) => string;
+  addParty: (name: string, phone: string, address?: string, openingBalance?: number) => string;
   deleteParty: (id: string) => void;
-  addKhaataEntry: (partyId: string, type: "credit" | "debit", amount: number, note: string) => void;
+  addKhaataEntry: (partyId: string, type: "credit" | "debit", amount: number, note: string, date?: string) => void;
   deleteKhaataEntry: (partyId: string, entryId: string) => void;
   addInvoice: (invoice: Omit<Invoice, "id">, syncToLedger?: boolean) => string;
   updateInvoice: (id: string, invoice: Invoice, syncToLedger?: boolean) => void;
@@ -639,13 +641,27 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }));
   };
 
-  const addParty = (name: string, phone: string) => {
+  const addParty = (name: string, phone: string, address?: string, openingBalance?: number) => {
     const newId = `K${String(Date.now()).slice(-4)}`;
+    const initialEntries: Entry[] = [];
+    
+    if (openingBalance && openingBalance > 0) {
+      initialEntries.push({
+        id: `e-debit-opening-${Date.now()}`,
+        date: new Date().toISOString().slice(0, 10),
+        type: "debit",
+        amount: openingBalance,
+        note: "Opening Balance"
+      });
+    }
+
     const newParty: Party = {
       id: newId,
       name,
       phone,
-      entries: [],
+      address,
+      openingBalance,
+      entries: initialEntries,
     };
     setParties((prev) => [newParty, ...prev]);
     return newId;
@@ -655,10 +671,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setParties((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const addKhaataEntry = (partyId: string, type: "credit" | "debit", amount: number, note: string) => {
+  const addKhaataEntry = (partyId: string, type: "credit" | "debit", amount: number, note: string, date?: string) => {
     const newEntry: Entry = {
       id: `e-${type}-${Date.now()}`,
-      date: new Date().toISOString().slice(0, 10),
+      date: date || new Date().toISOString().slice(0, 10),
       type,
       amount,
       note: note || (type === "debit" ? "You gave" : "You got"),
