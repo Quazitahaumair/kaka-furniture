@@ -13,12 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Orders", url: "/orders", icon: ShoppingBag },
-  { title: "Inventory", url: "/inventory", icon: Package },
-  { title: "Customers", url: "/customers", icon: Users },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Khaata Book", url: "/khaata", icon: BookOpen },
+  { title: "Khaata Book", url: "/", icon: BookOpen },
 ];
 
 export function AppSidebar() {
