@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ShoppingBag, Package, Users, BarChart3, BookOpen, Armchair } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, Users, BarChart3, BookOpen, Armchair, Receipt } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
+  { title: "Invoice Generator", url: "/invoices", icon: Receipt },
   { title: "Khaata Book", url: "/", icon: BookOpen },
 ];
 

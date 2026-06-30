@@ -13,6 +13,28 @@ import {
 } from "@/lib/mock-data";
 
 // Interfaces
+export interface InvoiceItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Invoice {
+  id: string;
+  date: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  items: InvoiceItem[];
+  discount: number;
+  total: number;
+  notes?: string;
+  syncToLedger?: boolean;
+  partyId?: string;
+  ledgerEntryId?: string;
+}
+
 export interface Order {
   id: string;
   customer: string;
@@ -134,11 +156,48 @@ const initialParties: Party[] = [
   },
 ];
 
+const initialInvoices: Invoice[] = [
+  {
+    id: "INV-2026-0001",
+    date: "2026-06-10",
+    customerName: "Rajesh Carpentry",
+    customerPhone: "+91 98765 12345",
+    customerAddress: "Sector 15, Noida, UP",
+    items: [
+      { id: "i1", name: "Wood Planks (Teak)", quantity: 10, price: 1800 }
+    ],
+    discount: 0,
+    total: 18000,
+    notes: "Wood supplies delivered for framing.",
+    syncToLedger: true,
+    partyId: "K001",
+    ledgerEntryId: "e1"
+  },
+  {
+    id: "INV-2026-0002",
+    date: "2026-06-14",
+    customerName: "Sita Devi (Customer)",
+    customerPhone: "+91 90123 45678",
+    customerAddress: "Flat 402, Royal Apartments, Indiranagar, Bengaluru",
+    items: [
+      { id: "i2", name: "Premium Dining Table", quantity: 1, price: 25000 },
+      { id: "i3", name: "Dining Chairs", quantity: 4, price: 2000 }
+    ],
+    discount: 1000,
+    total: 32000,
+    notes: "Dining set delivered. Glass top included.",
+    syncToLedger: true,
+    partyId: "K003",
+    ledgerEntryId: "e5"
+  }
+];
+
 interface AppStateContextProps {
   orders: Order[];
   products: Product[];
   customers: Customer[];
   parties: Party[];
+  invoices: Invoice[];
   summary: Summary;
   categories: Category[];
   dailySales: DailySale[];
@@ -163,6 +222,9 @@ interface AppStateContextProps {
   deleteParty: (id: string) => void;
   addKhaataEntry: (partyId: string, type: "credit" | "debit", amount: number, note: string) => void;
   deleteKhaataEntry: (partyId: string, entryId: string) => void;
+  addInvoice: (invoice: Omit<Invoice, "id">, syncToLedger?: boolean) => string;
+  updateInvoice: (id: string, invoice: Invoice, syncToLedger?: boolean) => void;
+  deleteInvoice: (id: string) => void;
 }
 
 const AppStateContext = createContext<AppStateContextProps | undefined>(undefined);
@@ -172,6 +234,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [parties, setParties] = useState<Party[]>(initialParties);
+  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [summary, setSummary] = useState<Summary>(initialSummary);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [dailySales, setDailySales] = useState<DailySale[]>(initialDailySales);
@@ -188,6 +251,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const storedProducts = localStorage.getItem("kaka-products-v1");
       const storedCustomers = localStorage.getItem("kaka-customers-v1");
       const storedParties = localStorage.getItem("kaka-khaata-v1");
+      const storedInvoices = localStorage.getItem("kaka-invoices-v1");
       const storedSummary = localStorage.getItem("kaka-summary-v1");
       const storedCategories = localStorage.getItem("kaka-categories-v1");
       const storedDailySales = localStorage.getItem("kaka-dailySales-v1");
@@ -200,6 +264,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (storedProducts) setProducts(JSON.parse(storedProducts));
       if (storedCustomers) setCustomers(JSON.parse(storedCustomers));
       if (storedParties) setParties(JSON.parse(storedParties));
+      if (storedInvoices) setInvoices(JSON.parse(storedInvoices));
       if (storedSummary) setSummary(JSON.parse(storedSummary));
       if (storedCategories) setCategories(JSON.parse(storedCategories));
       if (storedDailySales) setDailySales(JSON.parse(storedDailySales));
@@ -221,6 +286,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.setItem("kaka-products-v1", JSON.stringify(products));
       localStorage.setItem("kaka-customers-v1", JSON.stringify(customers));
       localStorage.setItem("kaka-khaata-v1", JSON.stringify(parties));
+      localStorage.setItem("kaka-invoices-v1", JSON.stringify(invoices));
       localStorage.setItem("kaka-summary-v1", JSON.stringify(summary));
       localStorage.setItem("kaka-categories-v1", JSON.stringify(categories));
       localStorage.setItem("kaka-dailySales-v1", JSON.stringify(dailySales));
@@ -231,7 +297,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (e) {
       console.error("Failed to save state to localStorage", e);
     }
-  }, [orders, products, customers, parties, summary, categories, dailySales, monthlySales, cityRevenue, orderStatus, activity, isLoaded]);
+  }, [orders, products, customers, parties, invoices, summary, categories, dailySales, monthlySales, cityRevenue, orderStatus, activity, isLoaded]);
 
   const addOrder = (orderData: {
     customerName: string;
@@ -619,6 +685,153 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
   };
 
+  const addInvoice = (invoiceData: Omit<Invoice, "id">, syncToLedger: boolean = true) => {
+    const nextNum = invoices.length > 0
+      ? Math.max(...invoices.map((inv) => {
+          const match = inv.id.match(/INV-\d+-(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        })) + 1
+      : 3;
+    const year = new Date().getFullYear();
+    const newId = `INV-${year}-${String(nextNum).padStart(4, "0")}`;
+
+    let ledgerEntryId = "";
+    let partyId = invoiceData.partyId;
+
+    if (syncToLedger && invoiceData.total > 0) {
+      let finalPartyId = partyId;
+      if (!finalPartyId) {
+        const existing = parties.find(
+          (p) => p.name.toLowerCase() === invoiceData.customerName.toLowerCase() ||
+                 (invoiceData.customerPhone && p.phone === invoiceData.customerPhone)
+        );
+        if (existing) {
+          finalPartyId = existing.id;
+        } else {
+          finalPartyId = addParty(invoiceData.customerName, invoiceData.customerPhone);
+        }
+      }
+      partyId = finalPartyId;
+
+      const entryId = `e-debit-${Date.now()}`;
+      const newEntry = {
+        id: entryId,
+        date: invoiceData.date || new Date().toISOString().slice(0, 10),
+        type: "debit" as const,
+        amount: invoiceData.total,
+        note: `Invoice ${newId} created`,
+      };
+
+      setParties((prev) =>
+        prev.map((p) => {
+          if (p.id === finalPartyId) {
+            return { ...p, entries: [newEntry, ...p.entries] };
+          }
+          return p;
+        })
+      );
+      ledgerEntryId = entryId;
+    }
+
+    const newInvoice: Invoice = {
+      ...invoiceData,
+      id: newId,
+      partyId,
+      ledgerEntryId: ledgerEntryId || undefined,
+      syncToLedger,
+    };
+
+    setInvoices((prev) => [newInvoice, ...prev]);
+    return newId;
+  };
+
+  const updateInvoice = (id: string, updatedData: Invoice, syncToLedger: boolean = true) => {
+    const existingInv = invoices.find((inv) => inv.id === id);
+    if (!existingInv) return;
+
+    let ledgerEntryId = updatedData.ledgerEntryId;
+    let partyId = updatedData.partyId;
+
+    if (existingInv.syncToLedger && existingInv.partyId && existingInv.ledgerEntryId) {
+      setParties((prev) =>
+        prev.map((p) => {
+          if (p.id === existingInv.partyId) {
+            return { ...p, entries: p.entries.filter((e) => e.id !== existingInv.ledgerEntryId) };
+          }
+          return p;
+        })
+      );
+    }
+
+    if (syncToLedger && updatedData.total > 0) {
+      let finalPartyId = partyId;
+      if (!finalPartyId) {
+        const existing = parties.find(
+          (p) => p.name.toLowerCase() === updatedData.customerName.toLowerCase() ||
+                 (updatedData.customerPhone && p.phone === updatedData.customerPhone)
+        );
+        if (existing) {
+          finalPartyId = existing.id;
+        } else {
+          finalPartyId = addParty(updatedData.customerName, updatedData.customerPhone);
+        }
+      }
+      partyId = finalPartyId;
+
+      const entryId = `e-debit-${Date.now()}`;
+      const newEntry = {
+        id: entryId,
+        date: updatedData.date || new Date().toISOString().slice(0, 10),
+        type: "debit" as const,
+        amount: updatedData.total,
+        note: `Invoice ${id} updated`,
+      };
+
+      setParties((prev) =>
+        prev.map((p) => {
+          if (p.id === finalPartyId) {
+            return { ...p, entries: [newEntry, ...p.entries] };
+          }
+          return p;
+        })
+      );
+      ledgerEntryId = entryId;
+    } else {
+      ledgerEntryId = undefined;
+    }
+
+    setInvoices((prev) =>
+      prev.map((inv) => {
+        if (inv.id === id) {
+          return {
+            ...updatedData,
+            partyId,
+            ledgerEntryId,
+            syncToLedger,
+          };
+        }
+        return inv;
+      })
+    );
+  };
+
+  const deleteInvoice = (id: string) => {
+    const existingInv = invoices.find((inv) => inv.id === id);
+    if (existingInv) {
+      if (existingInv.syncToLedger && existingInv.partyId && existingInv.ledgerEntryId) {
+        setParties((prev) =>
+          prev.map((p) => {
+            if (p.id === existingInv.partyId) {
+              return { ...p, entries: p.entries.filter((e) => e.id !== existingInv.ledgerEntryId) };
+            }
+            return p;
+          })
+        );
+      }
+    }
+    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+  };
+
   return (
     <AppStateContext.Provider
       value={{
@@ -626,6 +839,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         products,
         customers,
         parties,
+        invoices,
         summary,
         categories,
         dailySales,
@@ -642,6 +856,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteParty,
         addKhaataEntry,
         deleteKhaataEntry,
+        addInvoice,
+        updateInvoice,
+        deleteInvoice,
       }}
     >
       {children}
