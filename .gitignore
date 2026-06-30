@@ -34,4 +34,6 @@ dist-ssr
 # Build output and temporary files
 tsconfig.tsbuildinfo
 .workspace/
+.netlify/
+
 

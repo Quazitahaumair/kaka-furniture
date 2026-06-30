@@ -12,6 +12,9 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    preset: "netlify",
+  },
   vite: {
     server: {
       allowedHosts: ["spearmint-edginess-hyphen.ngrok-free.dev", ".ngrok-free.dev"],
