@@ -163,7 +163,10 @@ function KhaataPage() {
       `*Kaka Furniture — Ledger Account Balance Reminder*\n\n` +
       `Dear ${active.name},\n\n` +
       `This is a friendly reminder that you have an outstanding balance of *₹${bal.toLocaleString("en-IN")}* in your ledger account with Kaka Furniture.\n\n` +
-      `Kindly arrange to settle this balance. If you have already paid or have queries, please contact our administrator at *+91 7875992293*.\n\n` +
+      `Kindly arrange to settle this balance.\n\n` +
+      `*Phone/Google pay*\n` +
+      `*KSC SOFA AND CHAIR HOUSE NANDED*\n` +
+      `*M.7057069368................ sajjad kachi*\n\n` +
       `Thank you for your business!`
     );
 
