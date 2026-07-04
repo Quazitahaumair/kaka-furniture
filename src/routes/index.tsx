@@ -322,7 +322,7 @@ function KhaataPage() {
                 <UserPlus className="h-4 w-4" /> Add Ledger Party
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md w-[92vw] rounded-xl">
               <DialogHeader>
                 <DialogTitle className="font-serif">Add New Ledger Account</DialogTitle>
                 <CardDescription>Create a customer ledger profile for tracking payments.</CardDescription>
@@ -464,7 +464,7 @@ function KhaataPage() {
         <Card className="lg:col-span-2">
           {active ? (
             <>
-              <CardHeader className="flex flex-row items-start justify-between gap-3 pb-4 border-b">
+              <CardHeader className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b">
                 <div className="space-y-1">
                   <CardTitle className="font-serif text-2xl text-slate-900">{active.name}</CardTitle>
                   {active.phone && (
@@ -489,30 +489,33 @@ function KhaataPage() {
                   </div>
                 </div>
                 
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-1.5">
-                    {balance(active) > 0 && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleSendReminder}
-                        className="flex items-center gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5 text-emerald-600" /> Send Reminder
-                      </Button>
-                    )}
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:justify-end">
+                  {balance(active) > 0 && (
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={handlePrintStatement}
-                      className="flex items-center gap-1.5 text-slate-700 border-slate-300"
+                      onClick={handleSendReminder}
+                      className="flex items-center gap-1.5 text-emerald-700 border-emerald-200 hover:bg-emerald-50 w-full md:w-auto justify-center"
                     >
-                      <Printer className="h-3.5 w-3.5" /> Print Statement
+                      <MessageSquare className="h-3.5 w-3.5 text-emerald-600" /> Send Reminder
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => deleteParty(active.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handlePrintStatement}
+                    className="flex items-center gap-1.5 text-slate-700 border-slate-300 w-full md:w-auto justify-center"
+                  >
+                    <Printer className="h-3.5 w-3.5" /> Print Statement
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-destructive border-red-200 hover:bg-red-50 w-full md:w-auto justify-center flex items-center gap-1.5" 
+                    onClick={() => deleteParty(active.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete Account
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
