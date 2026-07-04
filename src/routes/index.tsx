@@ -160,10 +160,10 @@ function KhaataPage() {
     }
 
     const text = encodeURIComponent(
-      `*Kaka Furniture — Ledger Account Balance Reminder*\n\n` +
-      `Dear ${active.name},\n\n` +
-      `This is a friendly reminder that you have an outstanding balance of *₹${bal.toLocaleString("en-IN")}* in your ledger account with Kaka Furniture.\n\n` +
-      `Kindly arrange to settle this balance.\n\n` +
+      `*KSC SOFA ND CHAIR HOUSE — Ledger Account Balance Reminder*\n\n` +
+      `Dear ${active.name}\n\n` +
+      `This is a friendly reminder that you have an outstanding balance of *₹${bal.toLocaleString("en-IN")}* in your ledger account with KSC SOFA ND CHAIR HOUSE\n\n` +
+      `PAYMENT DETAILS\n\n` +
       `*Phone/Google pay*\n` +
       `*KSC SOFA AND CHAIR HOUSE NANDED*\n` +
       `*M.7057069368................ sajjad kachi*\n\n` +
