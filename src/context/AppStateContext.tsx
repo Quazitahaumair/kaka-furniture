@@ -11,6 +11,7 @@ import {
   orderStatus as initialOrderStatus,
   activity as initialActivity,
 } from "@/lib/mock-data";
+import { apiService } from "@/lib/api";
 
 // Interfaces
 export interface InvoiceItem {
@@ -129,70 +130,10 @@ export interface ActivityItem {
 }
 
 // Initial Khaata data from khaata.tsx
-const initialParties: Party[] = [
-  {
-    id: "K001",
-    name: "Rajesh Carpentry",
-    phone: "+91 98765 12345",
-    entries: [
-      { id: "e1", date: "2026-06-10", type: "debit", amount: 18000, note: "Wood supplies on credit" },
-      { id: "e2", date: "2026-06-15", type: "credit", amount: 10000, note: "Cash payment received" },
-    ],
-  },
-  {
-    id: "K002",
-    name: "Mohan Upholstery",
-    phone: "+91 98101 22334",
-    entries: [
-      { id: "e3", date: "2026-06-08", type: "debit", amount: 42000, note: "Cushion fabric bulk order" },
-      { id: "e4", date: "2026-06-12", type: "credit", amount: 25000, note: "Part payment via UPI" },
-    ],
-  },
-  {
-    id: "K003",
-    name: "Sita Devi (Customer)",
-    phone: "+91 90123 45678",
-    entries: [
-      { id: "e5", date: "2026-06-14", type: "debit", amount: 32000, note: "Dining set, balance pending" },
-    ],
-  },
-];
+const initialParties: Party[] = [];
 
-const initialInvoices: Invoice[] = [
-  {
-    id: "INV-2026-0001",
-    date: "2026-06-10",
-    customerName: "Rajesh Carpentry",
-    customerPhone: "+91 98765 12345",
-    customerAddress: "Sector 15, Noida, UP",
-    items: [
-      { id: "i1", name: "Wood Planks (Teak)", quantity: 10, price: 1800 }
-    ],
-    discount: 0,
-    total: 18000,
-    notes: "Wood supplies delivered for framing.",
-    syncToLedger: true,
-    partyId: "K001",
-    ledgerEntryId: "e1"
-  },
-  {
-    id: "INV-2026-0002",
-    date: "2026-06-14",
-    customerName: "Sita Devi (Customer)",
-    customerPhone: "+91 90123 45678",
-    customerAddress: "Flat 402, Royal Apartments, Indiranagar, Bengaluru",
-    items: [
-      { id: "i2", name: "Premium Dining Table", quantity: 1, price: 25000 },
-      { id: "i3", name: "Dining Chairs", quantity: 4, price: 2000 }
-    ],
-    discount: 1000,
-    total: 32000,
-    notes: "Dining set delivered. Glass top included.",
-    syncToLedger: true,
-    partyId: "K003",
-    ledgerEntryId: "e5"
-  }
-];
+const initialInvoices: Invoice[] = [];
+
 
 interface AppStateContextProps {
   orders: Order[];
@@ -220,13 +161,13 @@ interface AppStateContextProps {
   cancelOrder: (id: string) => void;
   adjustStock: (productId: string, delta: number) => void;
   addProduct: (product: Omit<Product, "sold" | "views">) => void;
-  addParty: (name: string, phone: string, address?: string, openingBalance?: number) => string;
-  deleteParty: (id: string) => void;
-  addKhaataEntry: (partyId: string, type: "credit" | "debit", amount: number, note: string, date?: string) => void;
-  deleteKhaataEntry: (partyId: string, entryId: string) => void;
-  addInvoice: (invoice: Omit<Invoice, "id">, syncToLedger?: boolean) => string;
-  updateInvoice: (id: string, invoice: Invoice, syncToLedger?: boolean) => void;
-  deleteInvoice: (id: string) => void;
+  addParty: (name: string, phone: string, address?: string, openingBalance?: number) => Promise<string>;
+  deleteParty: (id: string) => Promise<void>;
+  addKhaataEntry: (partyId: string, type: "credit" | "debit", amount: number, note: string, date?: string) => Promise<void>;
+  deleteKhaataEntry: (partyId: string, entryId: string) => Promise<void>;
+  addInvoice: (invoice: Omit<Invoice, "id">, syncToLedger?: boolean) => Promise<string>;
+  updateInvoice: (id: string, invoice: Invoice, syncToLedger?: boolean) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
 }
 
 const AppStateContext = createContext<AppStateContextProps | undefined>(undefined);
@@ -246,27 +187,23 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from local storage
+  // Load from local storage & database
   useEffect(() => {
     try {
-      const storedOrders = localStorage.getItem("kaka-orders-v1");
-      const storedProducts = localStorage.getItem("kaka-products-v1");
-      const storedCustomers = localStorage.getItem("kaka-customers-v1");
-      const storedParties = localStorage.getItem("kaka-khaata-v1");
-      const storedInvoices = localStorage.getItem("kaka-invoices-v1");
-      const storedSummary = localStorage.getItem("kaka-summary-v1");
-      const storedCategories = localStorage.getItem("kaka-categories-v1");
-      const storedDailySales = localStorage.getItem("kaka-dailySales-v1");
-      const storedMonthlySales = localStorage.getItem("kaka-monthlySales-v1");
-      const storedCityRevenue = localStorage.getItem("kaka-cityRevenue-v1");
-      const storedOrderStatus = localStorage.getItem("kaka-orderStatus-v1");
-      const storedActivity = localStorage.getItem("kaka-activity-v1");
+      const storedOrders = localStorage.getItem("kaka-orders-v2");
+      const storedProducts = localStorage.getItem("kaka-products-v2");
+      const storedCustomers = localStorage.getItem("kaka-customers-v2");
+      const storedSummary = localStorage.getItem("kaka-summary-v2");
+      const storedCategories = localStorage.getItem("kaka-categories-v2");
+      const storedDailySales = localStorage.getItem("kaka-dailySales-v2");
+      const storedMonthlySales = localStorage.getItem("kaka-monthlySales-v2");
+      const storedCityRevenue = localStorage.getItem("kaka-cityRevenue-v2");
+      const storedOrderStatus = localStorage.getItem("kaka-orderStatus-v2");
+      const storedActivity = localStorage.getItem("kaka-activity-v2");
 
       if (storedOrders) setOrders(JSON.parse(storedOrders));
       if (storedProducts) setProducts(JSON.parse(storedProducts));
       if (storedCustomers) setCustomers(JSON.parse(storedCustomers));
-      if (storedParties) setParties(JSON.parse(storedParties));
-      if (storedInvoices) setInvoices(JSON.parse(storedInvoices));
       if (storedSummary) setSummary(JSON.parse(storedSummary));
       if (storedCategories) setCategories(JSON.parse(storedCategories));
       if (storedDailySales) setDailySales(JSON.parse(storedDailySales));
@@ -275,8 +212,29 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (storedOrderStatus) setOrderStatus(JSON.parse(storedOrderStatus));
       if (storedActivity) setActivity(JSON.parse(storedActivity));
     } catch (e) {
-      console.error("Failed to load state from localStorage", e);
+      console.error("Failed to load local state from localStorage", e);
     }
+
+    // Connect and fetch data from MongoDB Atlas backend
+    const syncWithBackend = async () => {
+      try {
+        console.log("Fetching parties from MongoDB Atlas...");
+        const dbParties = await apiService.getParties();
+        setParties(dbParties);
+      } catch (err) {
+        console.warn("Could not load parties from database backend, using fallback:", err);
+      }
+
+      try {
+        console.log("Fetching invoices from MongoDB Atlas...");
+        const dbInvoices = await apiService.getInvoices();
+        setInvoices(dbInvoices);
+      } catch (err) {
+        console.warn("Could not load invoices from database backend, using fallback:", err);
+      }
+    };
+
+    syncWithBackend();
     setIsLoaded(true);
   }, []);
 
@@ -284,18 +242,18 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem("kaka-orders-v1", JSON.stringify(orders));
-      localStorage.setItem("kaka-products-v1", JSON.stringify(products));
-      localStorage.setItem("kaka-customers-v1", JSON.stringify(customers));
-      localStorage.setItem("kaka-khaata-v1", JSON.stringify(parties));
-      localStorage.setItem("kaka-invoices-v1", JSON.stringify(invoices));
-      localStorage.setItem("kaka-summary-v1", JSON.stringify(summary));
-      localStorage.setItem("kaka-categories-v1", JSON.stringify(categories));
-      localStorage.setItem("kaka-dailySales-v1", JSON.stringify(dailySales));
-      localStorage.setItem("kaka-monthlySales-v1", JSON.stringify(monthlySales));
-      localStorage.setItem("kaka-cityRevenue-v1", JSON.stringify(cityRevenue));
-      localStorage.setItem("kaka-orderStatus-v1", JSON.stringify(orderStatus));
-      localStorage.setItem("kaka-activity-v1", JSON.stringify(activity));
+      localStorage.setItem("kaka-orders-v2", JSON.stringify(orders));
+      localStorage.setItem("kaka-products-v2", JSON.stringify(products));
+      localStorage.setItem("kaka-customers-v2", JSON.stringify(customers));
+      localStorage.setItem("kaka-khaata-v2", JSON.stringify(parties));
+      localStorage.setItem("kaka-invoices-v2", JSON.stringify(invoices));
+      localStorage.setItem("kaka-summary-v2", JSON.stringify(summary));
+      localStorage.setItem("kaka-categories-v2", JSON.stringify(categories));
+      localStorage.setItem("kaka-dailySales-v2", JSON.stringify(dailySales));
+      localStorage.setItem("kaka-monthlySales-v2", JSON.stringify(monthlySales));
+      localStorage.setItem("kaka-cityRevenue-v2", JSON.stringify(cityRevenue));
+      localStorage.setItem("kaka-orderStatus-v2", JSON.stringify(orderStatus));
+      localStorage.setItem("kaka-activity-v2", JSON.stringify(activity));
     } catch (e) {
       console.error("Failed to save state to localStorage", e);
     }
@@ -641,211 +599,109 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }));
   };
 
-  const addParty = (name: string, phone: string, address?: string, openingBalance?: number) => {
-    const newId = `K${String(Date.now()).slice(-4)}`;
-    const initialEntries: Entry[] = [];
-    
-    if (openingBalance && openingBalance > 0) {
-      initialEntries.push({
-        id: `e-debit-opening-${Date.now()}`,
-        date: new Date().toISOString().slice(0, 10),
-        type: "debit",
-        amount: openingBalance,
-        note: "Opening Balance"
-      });
+  const addParty = async (name: string, phone: string, address?: string, openingBalance?: number): Promise<string> => {
+    try {
+      const savedParty = await apiService.createParty({ name, phone, address, openingBalance });
+      setParties((prev) => [savedParty, ...prev]);
+      return savedParty.id;
+    } catch (e: any) {
+      console.error("Failed to create party on backend:", e);
+      throw e;
     }
-
-    const newParty: Party = {
-      id: newId,
-      name,
-      phone,
-      address,
-      openingBalance,
-      entries: initialEntries,
-    };
-    setParties((prev) => [newParty, ...prev]);
-    return newId;
   };
 
-  const deleteParty = (id: string) => {
-    setParties((prev) => prev.filter((p) => p.id !== id));
+  const deleteParty = async (id: string): Promise<void> => {
+    try {
+      await apiService.deleteParty(id);
+      setParties((prev) => prev.filter((p) => p.id !== id));
+      
+      // Clean up synced invoices locally by refreshing from backend
+      const updatedInvoices = await apiService.getInvoices();
+      setInvoices(updatedInvoices);
+    } catch (e: any) {
+      console.error("Failed to delete party from backend:", e);
+      throw e;
+    }
   };
 
-  const addKhaataEntry = (partyId: string, type: "credit" | "debit", amount: number, note: string, date?: string) => {
-    const newEntry: Entry = {
-      id: `e-${type}-${Date.now()}`,
-      date: date || new Date().toISOString().slice(0, 10),
-      type,
-      amount,
-      note: note || (type === "debit" ? "You gave" : "You got"),
-    };
-
-    setParties((prev) =>
-      prev.map((p) => {
-        if (p.id === partyId) {
-          return { ...p, entries: [newEntry, ...p.entries] };
-        }
-        return p;
-      })
-    );
-  };
-
-  const deleteKhaataEntry = (partyId: string, entryId: string) => {
-    setParties((prev) =>
-      prev.map((p) => {
-        if (p.id === partyId) {
-          return { ...p, entries: p.entries.filter((e) => e.id !== entryId) };
-        }
-        return p;
-      })
-    );
-  };
-
-  const addInvoice = (invoiceData: Omit<Invoice, "id">, syncToLedger: boolean = true) => {
-    const nextNum = invoices.length > 0
-      ? Math.max(...invoices.map((inv) => {
-          const match = inv.id.match(/INV-\d+-(\d+)/);
-          return match ? parseInt(match[1], 10) : 0;
-        })) + 1
-      : 3;
-    const year = new Date().getFullYear();
-    const newId = `INV-${year}-${String(nextNum).padStart(4, "0")}`;
-
-    let ledgerEntryId = "";
-    let partyId = invoiceData.partyId;
-
-    if (syncToLedger && invoiceData.total > 0) {
-      let finalPartyId = partyId;
-      if (!finalPartyId) {
-        const existing = parties.find(
-          (p) => p.name.toLowerCase() === invoiceData.customerName.toLowerCase() ||
-                 (invoiceData.customerPhone && p.phone === invoiceData.customerPhone)
-        );
-        if (existing) {
-          finalPartyId = existing.id;
-        } else {
-          finalPartyId = addParty(invoiceData.customerName, invoiceData.customerPhone);
-        }
-      }
-      partyId = finalPartyId;
-
-      const entryId = `e-debit-${Date.now()}`;
-      const newEntry = {
-        id: entryId,
-        date: invoiceData.date || new Date().toISOString().slice(0, 10),
-        type: "debit" as const,
-        amount: invoiceData.total,
-        note: `Invoice ${newId} created`,
-      };
-
+  const addKhaataEntry = async (partyId: string, type: "credit" | "debit", amount: number, note: string, date?: string): Promise<void> => {
+    try {
+      const entry = await apiService.addLedgerEntry(partyId, { type, amount, note, date });
       setParties((prev) =>
         prev.map((p) => {
-          if (p.id === finalPartyId) {
-            return { ...p, entries: [newEntry, ...p.entries] };
+          if (p.id === partyId) {
+            return { ...p, entries: [entry, ...p.entries] };
           }
           return p;
         })
       );
-      ledgerEntryId = entryId;
+    } catch (e: any) {
+      console.error("Failed to add entry on backend:", e);
+      throw e;
     }
-
-    const newInvoice: Invoice = {
-      ...invoiceData,
-      id: newId,
-      partyId,
-      ledgerEntryId: ledgerEntryId || undefined,
-      syncToLedger,
-    };
-
-    setInvoices((prev) => [newInvoice, ...prev]);
-    return newId;
   };
 
-  const updateInvoice = (id: string, updatedData: Invoice, syncToLedger: boolean = true) => {
-    const existingInv = invoices.find((inv) => inv.id === id);
-    if (!existingInv) return;
-
-    let ledgerEntryId = updatedData.ledgerEntryId;
-    let partyId = updatedData.partyId;
-
-    if (existingInv.syncToLedger && existingInv.partyId && existingInv.ledgerEntryId) {
+  const deleteKhaataEntry = async (partyId: string, entryId: string): Promise<void> => {
+    try {
+      await apiService.deleteLedgerEntry(partyId, entryId);
       setParties((prev) =>
         prev.map((p) => {
-          if (p.id === existingInv.partyId) {
-            return { ...p, entries: p.entries.filter((e) => e.id !== existingInv.ledgerEntryId) };
+          if (p.id === partyId) {
+            return { ...p, entries: p.entries.filter((e) => e.id !== entryId) };
           }
           return p;
         })
       );
+      
+      // Refresh invoices as removal of entries turns sync status off on backend
+      const updatedInvoices = await apiService.getInvoices();
+      setInvoices(updatedInvoices);
+    } catch (e: any) {
+      console.error("Failed to delete entry from backend:", e);
+      throw e;
     }
-
-    if (syncToLedger && updatedData.total > 0) {
-      let finalPartyId = partyId;
-      if (!finalPartyId) {
-        const existing = parties.find(
-          (p) => p.name.toLowerCase() === updatedData.customerName.toLowerCase() ||
-                 (updatedData.customerPhone && p.phone === updatedData.customerPhone)
-        );
-        if (existing) {
-          finalPartyId = existing.id;
-        } else {
-          finalPartyId = addParty(updatedData.customerName, updatedData.customerPhone);
-        }
-      }
-      partyId = finalPartyId;
-
-      const entryId = `e-debit-${Date.now()}`;
-      const newEntry = {
-        id: entryId,
-        date: updatedData.date || new Date().toISOString().slice(0, 10),
-        type: "debit" as const,
-        amount: updatedData.total,
-        note: `Invoice ${id} updated`,
-      };
-
-      setParties((prev) =>
-        prev.map((p) => {
-          if (p.id === finalPartyId) {
-            return { ...p, entries: [newEntry, ...p.entries] };
-          }
-          return p;
-        })
-      );
-      ledgerEntryId = entryId;
-    } else {
-      ledgerEntryId = undefined;
-    }
-
-    setInvoices((prev) =>
-      prev.map((inv) => {
-        if (inv.id === id) {
-          return {
-            ...updatedData,
-            partyId,
-            ledgerEntryId,
-            syncToLedger,
-          };
-        }
-        return inv;
-      })
-    );
   };
 
-  const deleteInvoice = (id: string) => {
-    const existingInv = invoices.find((inv) => inv.id === id);
-    if (existingInv) {
-      if (existingInv.syncToLedger && existingInv.partyId && existingInv.ledgerEntryId) {
-        setParties((prev) =>
-          prev.map((p) => {
-            if (p.id === existingInv.partyId) {
-              return { ...p, entries: p.entries.filter((e) => e.id !== existingInv.ledgerEntryId) };
-            }
-            return p;
-          })
-        );
+  const addInvoice = async (invoiceData: Omit<Invoice, "id">, syncToLedger: boolean = true): Promise<string> => {
+    try {
+      const savedInvoice = await apiService.createInvoice(invoiceData, syncToLedger);
+      setInvoices((prev) => [savedInvoice, ...prev]);
+
+      if (syncToLedger) {
+        const updatedParties = await apiService.getParties();
+        setParties(updatedParties);
       }
+      return savedInvoice.id;
+    } catch (e: any) {
+      console.error("Failed to generate invoice on backend:", e);
+      throw e;
     }
-    setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+  };
+
+  const updateInvoice = async (id: string, updatedData: Invoice, syncToLedger: boolean = true): Promise<void> => {
+    try {
+      const savedInvoice = await apiService.updateInvoice(id, updatedData, syncToLedger);
+      setInvoices((prev) => prev.map((inv) => inv.id === id ? savedInvoice : inv));
+
+      const updatedParties = await apiService.getParties();
+      setParties(updatedParties);
+    } catch (e: any) {
+      console.error("Failed to update invoice on backend:", e);
+      throw e;
+    }
+  };
+
+  const deleteInvoice = async (id: string): Promise<void> => {
+    try {
+      await apiService.deleteInvoice(id);
+      setInvoices((prev) => prev.filter((inv) => inv.id !== id));
+
+      const updatedParties = await apiService.getParties();
+      setParties(updatedParties);
+    } catch (e: any) {
+      console.error("Failed to delete invoice from backend:", e);
+      throw e;
+    }
   };
 
   return (

@@ -27,7 +27,6 @@ export const Route = createFileRoute("/invoices")({
 function InvoicesPage() {
   const {
     parties,
-    products,
     invoices,
     addInvoice,
     updateInvoice,
@@ -54,7 +53,6 @@ function InvoicesPage() {
   const [syncToLedger, setSyncToLedger] = useState(true);
 
   // New Item State (for adding rows to invoice)
-  const [selectedProductId, setSelectedProductId] = useState<string>("custom");
   const [itemName, setItemName] = useState("");
   const [itemQty, setItemQty] = useState("1");
   const [itemPrice, setItemPrice] = useState("");
@@ -87,20 +85,7 @@ function InvoicesPage() {
     }
   };
 
-  // Handle product selection change
-  const handleProductChange = (id: string) => {
-    setSelectedProductId(id);
-    if (id === "custom") {
-      setItemName("");
-      setItemPrice("");
-    } else {
-      const prod = products.find((p) => p.id === id);
-      if (prod) {
-        setItemName(prod.name);
-        setItemPrice(String(prod.price));
-      }
-    }
-  };
+
 
   // Add item to invoice rows
   const handleAddItem = () => {
@@ -121,7 +106,6 @@ function InvoicesPage() {
     setItemName("");
     setItemQty("1");
     setItemPrice("");
-    setSelectedProductId("custom");
     toast.success("Item added to list");
   };
 
@@ -131,7 +115,7 @@ function InvoicesPage() {
   };
 
   // Save Invoice (Create or Update)
-  const handleSaveInvoice = () => {
+  const handleSaveInvoice = async () => {
     if (!customerName.trim()) return toast.error("Customer name required");
     if (invoiceItems.length === 0) return toast.error("Add at least one item to invoice");
 
@@ -147,25 +131,29 @@ function InvoicesPage() {
       partyId: selectedPartyId !== "manual" ? selectedPartyId : undefined,
     };
 
-    if (editingId) {
-      // Find original to get internal ledger entry references if they exist
-      const original = invoices.find((inv) => inv.id === editingId);
-      const updatedInvoice: Invoice = {
-        ...invoiceData,
-        id: editingId,
-        ledgerEntryId: original?.ledgerEntryId,
-      };
-      updateInvoice(editingId, updatedInvoice, syncToLedger);
-      toast.success(`Invoice ${editingId} updated successfully`);
-      setEditingId(null);
-    } else {
-      const newId = addInvoice(invoiceData, syncToLedger);
-      toast.success(`Invoice ${newId} generated successfully`);
-    }
+    try {
+      if (editingId) {
+        // Find original to get internal ledger entry references if they exist
+        const original = invoices.find((inv) => inv.id === editingId);
+        const updatedInvoice: Invoice = {
+          ...invoiceData,
+          id: editingId,
+          ledgerEntryId: original?.ledgerEntryId,
+        };
+        await updateInvoice(editingId, updatedInvoice, syncToLedger);
+        toast.success(`Invoice ${editingId} updated successfully`);
+        setEditingId(null);
+      } else {
+        const newId = await addInvoice(invoiceData, syncToLedger);
+        toast.success(`Invoice ${newId} generated successfully`);
+      }
 
-    // Reset Form
-    handleResetForm();
-    setActiveTab("history");
+      // Reset Form
+      handleResetForm();
+      setActiveTab("history");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save invoice");
+    }
   };
 
   // Reset Form State
@@ -180,7 +168,6 @@ function InvoicesPage() {
     setDiscount("");
     setNotes("");
     setSyncToLedger(true);
-    setSelectedProductId("custom");
     setItemName("");
     setItemQty("1");
     setItemPrice("");
@@ -203,10 +190,14 @@ function InvoicesPage() {
   };
 
   // Delete invoice
-  const handleDeleteInvoice = (id: string) => {
+  const handleDeleteInvoice = async (id: string) => {
     if (window.confirm(`Are you sure you want to delete invoice ${id}? This will also remove any synced ledger entry.`)) {
-      deleteInvoice(id);
-      toast.success(`Invoice ${id} deleted`);
+      try {
+        await deleteInvoice(id);
+        toast.success(`Invoice ${id} deleted`);
+      } catch (err: any) {
+        toast.error(err.message || "Failed to delete invoice");
+      }
     }
   };
 
@@ -616,23 +607,7 @@ function InvoicesPage() {
                 {/* Row inputs to add new item */}
                 <div className="rounded-lg border bg-slate-50/50 p-4 space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-                    <div className="sm:col-span-4 space-y-1.5">
-                      <Label htmlFor="item-select">Quick-Select Product</Label>
-                      <Select value={selectedProductId} onValueChange={handleProductChange}>
-                        <SelectTrigger id="item-select">
-                          <SelectValue placeholder="Custom Description" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="custom">Enter Custom Item</SelectItem>
-                          {products.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} (₹{p.price.toLocaleString("en-IN")})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="sm:col-span-8 space-y-1.5">
+                    <div className="sm:col-span-12 space-y-1.5">
                       <Label htmlFor="item-desc">Item Description</Label>
                       <Input 
                         id="item-desc" 

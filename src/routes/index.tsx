@@ -65,45 +65,61 @@ function KhaataPage() {
   const netBalance = totalReceivable - totalPayable;
 
   // Add party with address and opening balance
-  const addParty = () => {
+  const addParty = async () => {
     if (!newParty.name.trim()) return toast.error("Name required");
     const opBal = Number(newParty.openingBalance) || 0;
-    const newId = appAddParty(newParty.name, newParty.phone, newParty.address, opBal);
-    setActiveId(newId);
-    setNewParty({ name: "", phone: "", address: "", openingBalance: "" });
-    setAddPartyOpen(false);
-    toast.success("Customer added to ledger");
+    try {
+      const newId = await appAddParty(newParty.name, newParty.phone, newParty.address, opBal);
+      setActiveId(newId);
+      setNewParty({ name: "", phone: "", address: "", openingBalance: "" });
+      setAddPartyOpen(false);
+      toast.success("Customer added to ledger");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add customer");
+    }
   };
 
   // Add ledger entry
-  const addEntry = () => {
+  const addEntry = async () => {
     const amt = Number(entry.amount);
     if (!amt || amt <= 0) return toast.error("Enter valid amount");
     if (!active) return;
-    addKhaataEntry(active.id, entry.type, amt, entry.note, entryDate);
-    setEntry({ type: "debit", amount: "", note: "" });
-    setEntryDate(new Date().toISOString().slice(0, 10));
-    toast.success(entry.type === "debit" ? "Udhaar added" : "Payment / Advance recorded");
+    try {
+      await addKhaataEntry(active.id, entry.type, amt, entry.note, entryDate);
+      setEntry({ type: "debit", amount: "", note: "" });
+      setEntryDate(new Date().toISOString().slice(0, 10));
+      toast.success(entry.type === "debit" ? "Udhaar added" : "Payment / Advance recorded");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add entry");
+    }
   };
 
   // Delete entry
-  const deleteEntry = (eid: string) => {
+  const deleteEntry = async (eid: string) => {
     if (!active) return;
-    deleteKhaataEntry(active.id, eid);
-    toast.success("Entry deleted");
+    try {
+      await deleteKhaataEntry(active.id, eid);
+      toast.success("Entry deleted");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete entry");
+    }
   };
 
   // Delete party
-  const deleteParty = (id: string) => {
+  const deleteParty = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this customer ledger account? This will delete all their transaction entries permanently.")) {
-      appDeleteParty(id);
-      if (activeId === id && parties.length > 1) {
-        const remaining = parties.filter((p) => p.id !== id);
-        if (remaining.length > 0) {
-          setActiveId(remaining[0].id);
+      try {
+        await appDeleteParty(id);
+        if (activeId === id && parties.length > 1) {
+          const remaining = parties.filter((p) => p.id !== id);
+          if (remaining.length > 0) {
+            setActiveId(remaining[0].id);
+          }
         }
+        toast.success("Customer ledger deleted");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to delete customer");
       }
-      toast.success("Customer ledger deleted");
     }
   };
 
