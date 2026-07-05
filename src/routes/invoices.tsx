@@ -216,8 +216,11 @@ function InvoicesPage() {
 
   // Open native browser print window
   const handlePrint = (invoice: Invoice) => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return toast.error("Pop-up blocked. Please enable pop-ups.");
+    // Clean up any existing print elements from previous runs
+    const oldContainer = document.getElementById("print-section");
+    if (oldContainer) oldContainer.remove();
+    const oldStyle = document.getElementById("print-media-style");
+    if (oldStyle) oldStyle.remove();
 
     const itemsHtml = invoice.items
       .map(
@@ -232,125 +235,150 @@ function InvoicesPage() {
       )
       .join("");
 
-    const html = `
-      <html>
-        <head>
-          <title>Invoice - ${invoice.id}</title>
-          <style>
-            body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; padding: 40px; margin: 0; line-height: 1.5; }
-            .invoice-box { max-width: 800px; margin: auto; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-            .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-            .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
-            .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            .details-table td { width: 50%; vertical-align: top; }
-            .invoice-info { text-align: right; }
-            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
-            .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-            .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-            .totals-row.grand { border-top: 2px solid #0f172a; font-size: 18px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
-            .notes-section { font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 20px; margin-top: 20px; }
-            .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-            @media print {
-              body { padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-box">
-            <div class="header">
-              <div>
-                <div class="company-logo">KAKA FURNITURE CO.</div>
-                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
-                <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 99999 88888</div>
-              </div>
-              <div class="invoice-info">
-                <h1 class="invoice-title">INVOICE</h1>
-                <div style="font-size: 15px; font-weight: 700; margin-top: 5px;">#${invoice.id}</div>
-                <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Date: ${invoice.date}</div>
-              </div>
-            </div>
-            
-            <table class="details-table">
-              <tr>
-                <td>
-                  <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Billed To:</div>
-                  <div style="font-weight: 700; font-size: 15px; color: #0f172a;">${invoice.customerName}</div>
-                  ${invoice.customerPhone ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Phone: ${invoice.customerPhone}</div>` : ""}
-                  ${invoice.customerAddress ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Address: ${invoice.customerAddress}</div>` : ""}
-                </td>
-                <td style="text-align: right;">
-                  <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Payment Details:</div>
-                  <div style="font-size: 13px; color: #475569;">Payment Method: Udhaar / Ledger Synced</div>
-                  <div style="font-size: 13px; color: #475569; margin-top: 2px;">Status: Saved in Ledger</div>
-                </td>
-              </tr>
-            </table>
-            
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Furniture Item</th>
-                  <th style="text-align: right; width: 80px;">Qty</th>
-                  <th style="text-align: right; width: 120px;">Unit Price</th>
-                  <th style="text-align: right; width: 130px;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
-            </table>
-            
-            <div class="totals-box">
-              <div class="totals-row">
-                <span>Subtotal:</span>
-                <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
-              </div>
-              ${
-                invoice.discount > 0
-                  ? `
-              <div class="totals-row" style="color: #ef4444;">
-                <span>Discount:</span>
-                <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
-              </div>
-              `
-                  : ""
-              }
-              <div class="totals-row grand">
-                <span>Grand Total:</span>
-                <span>₹${invoice.total.toLocaleString("en-IN")}</span>
-              </div>
-            </div>
-            
-            ${
-              invoice.notes
-                ? `
-            <div class="notes-section">
-              <div style="font-weight: 700; margin-bottom: 4px; color: #475569; font-size: 12px;">Notes / Special Terms:</div>
-              <div>${invoice.notes}</div>
-            </div>
-            `
-                : ""
-            }
-            
-            <div class="footer">
-              <p>Thank you for choosing Kaka Furniture Co.!</p>
-              <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">This is a system generated document.</p>
-            </div>
+    const printContainer = document.createElement("div");
+    printContainer.id = "print-section";
+    
+    printContainer.innerHTML = `
+      <div class="invoice-box">
+        <div class="header">
+          <div>
+            <div class="company-logo">KAKA FURNITURE CO.</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
+            <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 99999 88888</div>
           </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 500);
-            };
-          <\/script>
-        </body>
-      </html>
+          <div class="invoice-info">
+            <h1 class="invoice-title">INVOICE</h1>
+            <div style="font-size: 15px; font-weight: 700; margin-top: 5px;">#${invoice.id}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Date: ${invoice.date}</div>
+          </div>
+        </div>
+        
+        <table class="details-table">
+          <tr>
+            <td>
+              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Billed To:</div>
+              <div style="font-weight: 700; font-size: 15px; color: #0f172a;">${invoice.customerName}</div>
+              ${invoice.customerPhone ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Phone: ${invoice.customerPhone}</div>` : ""}
+              ${invoice.customerAddress ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Address: ${invoice.customerAddress}</div>` : ""}
+            </td>
+            <td style="text-align: right;">
+              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Payment Details:</div>
+              <div style="font-size: 13px; color: #475569;">Payment Method: Udhaar / Ledger Synced</div>
+              <div style="font-size: 13px; color: #475569; margin-top: 2px;">Status: Saved in Ledger</div>
+            </td>
+          </tr>
+        </table>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Furniture Item</th>
+              <th style="text-align: right; width: 80px;">Qty</th>
+              <th style="text-align: right; width: 120px;">Unit Price</th>
+              <th style="text-align: right; width: 130px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        
+        <div class="totals-box">
+          <div class="totals-row">
+            <span>Subtotal:</span>
+            <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
+          </div>
+          ${
+            invoice.discount > 0
+              ? `
+          <div class="totals-row" style="color: #ef4444;">
+            <span>Discount:</span>
+            <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
+          </div>
+          `
+              : ""
+          }
+          <div class="totals-row grand">
+            <span>Grand Total:</span>
+            <span>₹${invoice.total.toLocaleString("en-IN")}</span>
+          </div>
+        </div>
+        
+        ${
+          invoice.notes
+            ? `
+        <div class="notes-section">
+          <div style="font-weight: 700; margin-bottom: 4px; color: #475569; font-size: 12px;">Notes / Special Terms:</div>
+          <div>${invoice.notes}</div>
+        </div>
+        `
+            : ""
+        }
+        
+        <div class="footer">
+          <p>Thank you for choosing Kaka Furniture Co.!</p>
+          <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">This is a system generated document.</p>
+        </div>
+      </div>
     `;
 
-    printWindow.document.write(html);
-    printWindow.document.close();
+    const styleEl = document.createElement("style");
+    styleEl.id = "print-media-style";
+    styleEl.innerHTML = `
+      #print-section {
+        display: none;
+      }
+      @media print {
+        body > *:not(#print-section) {
+          display: none !important;
+        }
+        #print-section {
+          display: block !important;
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          font-family: system-ui, -apple-system, sans-serif;
+          color: #1e293b;
+          padding: 40px;
+          margin: 0;
+          line-height: 1.5;
+          background: white;
+        }
+        #print-section .invoice-box { max-width: 800px; margin: auto; }
+        #print-section .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+        #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+        #print-section .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
+        #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        #print-section .details-table td { width: 50%; vertical-align: top; }
+        #print-section .invoice-info { text-align: right; }
+        #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        #print-section .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
+        #print-section .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+        #print-section .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+        #print-section .totals-row.grand { border-top: 2px solid #0f172a; font-size: 18px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
+        #print-section .notes-section { font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 20px; margin-top: 20px; }
+        #print-section .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+      }
+    `;
+
+    document.head.appendChild(styleEl);
+    document.body.appendChild(printContainer);
+
+    // Force style recalculation/reflow before printing
+    printContainer.offsetHeight;
+
+    // Use a delayed cleanup of 10 seconds. This prevents immediate deletion
+    // while the mobile print spooler is asynchronously generating the PDF preview.
+    setTimeout(() => {
+      const el = document.getElementById("print-section");
+      if (el) el.remove();
+      const st = document.getElementById("print-media-style");
+      if (st) st.remove();
+    }, 10000);
+    
+    // Trigger browser print
+    window.print();
   };
 
   // WhatsApp Web share URL trigger

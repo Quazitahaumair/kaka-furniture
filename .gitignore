@@ -37,3 +37,6 @@ tsconfig.tsbuildinfo
 .netlify/
 
 
+
+.vercel
+.env*
