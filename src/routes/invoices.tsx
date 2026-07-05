@@ -20,7 +20,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/invoices")({
-  head: () => ({ meta: [{ title: "Invoice Generator — Kaka Furniture" }] }),
+  head: () => ({ meta: [{ title: "Invoice Generator — KSC SOFA ND CHAIR HOUSE" }] }),
   component: InvoicesPage,
 });
 
@@ -242,7 +242,7 @@ function InvoicesPage() {
       <div class="invoice-box">
         <div class="header">
           <div>
-            <div class="company-logo">KAKA FURNITURE CO.</div>
+            <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
             <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
             <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 99999 88888</div>
           </div>
@@ -316,7 +316,7 @@ function InvoicesPage() {
         }
         
         <div class="footer">
-          <p>Thank you for choosing Kaka Furniture Co.!</p>
+          <p>Thank you for choosing KSC SOFA ND CHAIR HOUSE!</p>
           <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">This is a system generated document.</p>
         </div>
       </div>
@@ -328,38 +328,37 @@ function InvoicesPage() {
       #print-section {
         display: none;
       }
-      @media print {
-        body > *:not(#print-section) {
-          display: none !important;
-        }
-        #print-section {
-          display: block !important;
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          font-family: system-ui, -apple-system, sans-serif;
-          color: #1e293b;
-          padding: 40px;
-          margin: 0;
-          line-height: 1.5;
-          background: white;
-        }
-        #print-section .invoice-box { max-width: 800px; margin: auto; }
-        #print-section .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-        #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-        #print-section .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
-        #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        #print-section .details-table td { width: 50%; vertical-align: top; }
-        #print-section .invoice-info { text-align: right; }
-        #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        #print-section .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
-        #print-section .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-        #print-section .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-        #print-section .totals-row.grand { border-top: 2px solid #0f172a; font-size: 18px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
-        #print-section .notes-section { font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 20px; margin-top: 20px; }
-        #print-section .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+      body.printing-active > *:not(#print-section) {
+        display: none !important;
       }
+      body.printing-active #print-section {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        font-family: system-ui, -apple-system, sans-serif;
+        color: #1e293b;
+        padding: 40px;
+        margin: 0;
+        line-height: 1.5;
+        background: white;
+        z-index: 999999;
+      }
+      body.printing-active #print-section .invoice-box { max-width: 800px; margin: auto; }
+      body.printing-active #print-section .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+      body.printing-active #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+      body.printing-active #print-section .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
+      body.printing-active #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+      body.printing-active #print-section .details-table td { width: 50%; vertical-align: top; }
+      body.printing-active #print-section .invoice-info { text-align: right; }
+      body.printing-active #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+      body.printing-active #print-section .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
+      body.printing-active #print-section .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+      body.printing-active #print-section .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+      body.printing-active #print-section .totals-row.grand { border-top: 2px solid #0f172a; font-size: 18px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
+      body.printing-active #print-section .notes-section { font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 20px; margin-top: 20px; }
+      body.printing-active #print-section .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
     `;
 
     document.head.appendChild(styleEl);
@@ -368,14 +367,21 @@ function InvoicesPage() {
     // Force style recalculation/reflow before printing
     printContainer.offsetHeight;
 
-    // Use a delayed cleanup of 10 seconds. This prevents immediate deletion
-    // while the mobile print spooler is asynchronously generating the PDF preview.
-    setTimeout(() => {
+    // Apply active printing class directly to body
+    document.body.classList.add("printing-active");
+
+    const cleanup = () => {
+      document.body.classList.remove("printing-active");
       const el = document.getElementById("print-section");
       if (el) el.remove();
       const st = document.getElementById("print-media-style");
       if (st) st.remove();
-    }, 10000);
+    };
+
+    // Use a delayed cleanup of 3 seconds. This keeps the document styled for print on the screen
+    // so that the asynchronous print preview capture on mobile can fetch the perfect styled layout,
+    // and then cleanly restores the original screen view.
+    setTimeout(cleanup, 3000);
     
     // Trigger browser print
     window.print();
@@ -384,7 +390,7 @@ function InvoicesPage() {
   // WhatsApp Web share URL trigger
   const handleShareWhatsApp = (invoice: Invoice) => {
     const text = encodeURIComponent(
-      `*Kaka Furniture — Invoice Summary*\n\n` +
+      `*KSC SOFA ND CHAIR HOUSE — Invoice Summary*\n\n` +
       `*Invoice #:* ${invoice.id}\n` +
       `*Date:* ${invoice.date}\n` +
       `*Billed To:* ${invoice.customerName}\n` +
@@ -400,16 +406,16 @@ function InvoicesPage() {
 
   // Mailto link trigger
   const handleShareEmail = (invoice: Invoice) => {
-    const subject = encodeURIComponent(`Invoice ${invoice.id} from Kaka Furniture`);
+    const subject = encodeURIComponent(`Invoice ${invoice.id} from KSC SOFA ND CHAIR HOUSE`);
     const body = encodeURIComponent(
       `Dear ${invoice.customerName},\n\n` +
-      `Thank you for shopping at Kaka Furniture. Here is your invoice summary:\n\n` +
+      `Thank you for shopping at KSC SOFA ND CHAIR HOUSE. Here is your invoice summary:\n\n` +
       `Invoice #: ${invoice.id}\n` +
       `Date: ${invoice.date}\n` +
       `Grand Total: ₹${invoice.total.toLocaleString("en-IN")}\n\n` +
       `Notes: ${invoice.notes || "None"}\n\n` +
       `If you have any questions, feel free to reply to this email.\n\n` +
-      `Best regards,\nKaka Furniture Co.`
+      `Best regards,\nKSC SOFA ND CHAIR HOUSE`
     );
     window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
   };
@@ -850,14 +856,14 @@ function InvoicesPage() {
                 <div className="flex flex-col sm:flex-row justify-between gap-6 border-b pb-6 border-slate-100">
                   <div>
                     <span className="font-serif text-2xl font-extrabold tracking-tight text-slate-900">
-                      KAKA FURNITURE CO.
+                      KSC SOFA ND CHAIR HOUSE
                     </span>
                     <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold mt-1">
                       Premium Wooden & Home Furniture
                     </p>
                     <p className="text-xs text-slate-400 mt-2">
                       Noida, Uttar Pradesh, India<br />
-                      Mob: +91 99999 88888 | info@kakafurniture.com
+                      Mob: +91 99999 88888 | info@kscsofachairhouse.com
                     </p>
                   </div>
                   <div className="sm:text-right">

@@ -20,7 +20,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Kaka Khaata Book — Ledger" }] }),
+  head: () => ({ meta: [{ title: "KSC SOFA ND CHAIR HOUSE Khaata Book — Ledger" }] }),
   component: KhaataPage,
 });
 
@@ -217,7 +217,7 @@ function KhaataPage() {
       <div class="statement-box">
         <div class="header">
           <div>
-            <div class="company-logo">KAKA FURNITURE CO.</div>
+            <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
             <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
             <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 7875992293</div>
           </div>
@@ -277,7 +277,7 @@ function KhaataPage() {
         
         <div class="footer">
           <p>For any queries regarding this statement, please contact us at +91 7875992293.</p>
-          <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">Kaka Furniture Ledger Management Console</p>
+          <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">KSC SOFA ND CHAIR HOUSE Ledger Management Console</p>
         </div>
       </div>
     `;
@@ -288,36 +288,35 @@ function KhaataPage() {
       #print-section {
         display: none;
       }
-      @media print {
-        body > *:not(#print-section) {
-          display: none !important;
-        }
-        #print-section {
-          display: block !important;
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          font-family: system-ui, -apple-system, sans-serif;
-          color: #1e293b;
-          padding: 40px;
-          margin: 0;
-          line-height: 1.5;
-          background: white;
-        }
-        #print-section .statement-box { max-width: 800px; margin: auto; }
-        #print-section .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-        #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-        #print-section .statement-title { font-size: 24px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
-        #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        #print-section .details-table td { width: 50%; vertical-align: top; }
-        #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        #print-section .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; }
-        #print-section .totals-box { width: 50%; margin-left: 50%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-        #print-section .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-        #print-section .totals-row.grand { border-top: 2px solid #0f172a; font-size: 16px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
-        #print-section .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+      body.printing-active > *:not(#print-section) {
+        display: none !important;
       }
+      body.printing-active #print-section {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        font-family: system-ui, -apple-system, sans-serif;
+        color: #1e293b;
+        padding: 40px;
+        margin: 0;
+        line-height: 1.5;
+        background: white;
+        z-index: 999999;
+      }
+      body.printing-active #print-section .statement-box { max-width: 800px; margin: auto; }
+      body.printing-active #print-section .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+      body.printing-active #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+      body.printing-active #print-section .statement-title { font-size: 24px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
+      body.printing-active #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+      body.printing-active #print-section .details-table td { width: 50%; vertical-align: top; }
+      body.printing-active #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+      body.printing-active #print-section .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; }
+      body.printing-active #print-section .totals-box { width: 50%; margin-left: 50%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+      body.printing-active #print-section .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+      body.printing-active #print-section .totals-row.grand { border-top: 2px solid #0f172a; font-size: 16px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
+      body.printing-active #print-section .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
     `;
 
     document.head.appendChild(styleEl);
@@ -326,14 +325,21 @@ function KhaataPage() {
     // Force style recalculation/reflow before printing
     printContainer.offsetHeight;
 
-    // Use a delayed cleanup of 10 seconds. This prevents immediate deletion
-    // while the mobile print spooler is asynchronously generating the PDF preview.
-    setTimeout(() => {
+    // Apply active printing class directly to body
+    document.body.classList.add("printing-active");
+
+    const cleanup = () => {
+      document.body.classList.remove("printing-active");
       const el = document.getElementById("print-section");
       if (el) el.remove();
       const st = document.getElementById("print-media-style");
       if (st) st.remove();
-    }, 10000);
+    };
+
+    // Use a delayed cleanup of 3 seconds. This keeps the document styled for print on the screen
+    // so that the asynchronous print preview capture on mobile can fetch the perfect styled layout,
+    // and then cleanly restores the original screen view.
+    setTimeout(cleanup, 3000);
     
     // Trigger browser print
     window.print();

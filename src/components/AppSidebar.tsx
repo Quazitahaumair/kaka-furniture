@@ -36,11 +36,11 @@ export function AppSidebar() {
             <Armchair className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <span className="font-serif text-lg font-bold leading-none tracking-tight text-sidebar-foreground">
-              KAKA
+            <span className="font-serif text-base font-bold leading-none tracking-tight text-sidebar-foreground">
+              KSC SOFA ND
             </span>
             <span className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">
-              Furniture Co.
+              CHAIR HOUSE
             </span>
           </div>
         </div>

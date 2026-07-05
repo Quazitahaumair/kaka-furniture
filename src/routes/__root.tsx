@@ -57,8 +57,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Kaka Furniture — Business Dashboard" },
-      { name: "description", content: "Kaka Furniture admin dashboard for orders, inventory, customers and khaata." },
+      { title: "KSC SOFA ND CHAIR HOUSE — Business Dashboard" },
+      { name: "description", content: "KSC SOFA ND CHAIR HOUSE admin dashboard for orders, inventory, customers and khaata." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -101,7 +101,7 @@ function RootComponent() {
               <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
                 <SidebarTrigger />
               <span className="font-serif text-sm font-semibold tracking-tight text-muted-foreground">
-                Kaka Furniture &mdash; Admin Console
+                KSC SOFA ND CHAIR HOUSE &mdash; Admin Console
               </span>
             </header>
             <main className="flex-1 p-6">
