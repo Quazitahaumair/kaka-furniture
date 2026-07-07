@@ -219,7 +219,7 @@ function KhaataPage() {
           <div>
             <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
             <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
-            <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 7875992293</div>
+            <div style="font-size: 12px; color: #64748b;">Maltekdi Railway Station Road Nanded | Mob: +91 9028887909</div>
           </div>
           <div class="invoice-info">
             <h1 class="statement-title">ACCOUNT STATEMENT</h1>
@@ -306,9 +306,10 @@ function KhaataPage() {
         z-index: 999999;
       }
       body.printing-active #print-section .statement-box { max-width: 800px; margin: auto; }
-      body.printing-active #print-section .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+      body.printing-active #print-section .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
       body.printing-active #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-      body.printing-active #print-section .statement-title { font-size: 24px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
+      body.printing-active #print-section .statement-title { font-size: 24px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; line-height: 1.1; }
+      body.printing-active #print-section .invoice-info { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
       body.printing-active #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
       body.printing-active #print-section .details-table td { width: 50%; vertical-align: top; }
       body.printing-active #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }

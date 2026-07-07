@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/PageHeader";
 import { formatINR } from "@/lib/mock-data";
 import { useAppState, Invoice, InvoiceItem } from "@/context/AppStateContext";
-import { 
-  Receipt, Plus, Trash2, Search, Calendar, FileText, Download, Printer, Share2, 
-  Check, User, Phone, MapPin, Eye, FileEdit, MessageCircle, Mail, AlertCircle 
+import {
+  Receipt, Plus, Trash2, Search, Calendar, FileText, Download, Printer, Share2,
+  Check, User, Phone, MapPin, Eye, FileEdit, MessageCircle, Mail, AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
+import { apiService, API_BASE_URL } from "@/lib/api";
 
 const PREDEFINED_FURNITURE = [
   "Low back revolving",
@@ -71,6 +72,11 @@ function InvoicesPage() {
 
   // View Modal State
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
+
+  // WhatsApp Linkage State
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [pendingInvoice, setPendingInvoice] = useState<Invoice | null>(null);
 
   // Auto-calculated fields for creator
   const subtotal = useMemo(() => {
@@ -228,7 +234,7 @@ function InvoicesPage() {
   // Filtered Invoices for History Tab
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
-      const matchQuery = 
+      const matchQuery =
         !q ||
         inv.id.toLowerCase().includes(q.toLowerCase()) ||
         inv.customerName.toLowerCase().includes(q.toLowerCase()) ||
@@ -261,14 +267,14 @@ function InvoicesPage() {
 
     const printContainer = document.createElement("div");
     printContainer.id = "print-section";
-    
+
     printContainer.innerHTML = `
       <div class="invoice-box">
         <div class="header">
           <div>
             <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
             <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
-            <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 99999 88888</div>
+            <div style="font-size: 12px; color: #64748b;">Maltekdi Railway Station Road Nanded | Mob: +91 9028887909</div>
           </div>
           <div class="invoice-info">
             <h1 class="invoice-title">INVOICE</h1>
@@ -312,32 +318,30 @@ function InvoicesPage() {
             <span>Subtotal:</span>
             <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
           </div>
-          ${
-            invoice.discount > 0
-              ? `
+          ${invoice.discount > 0
+        ? `
           <div class="totals-row" style="color: #ef4444;">
             <span>Discount:</span>
             <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
           </div>
           `
-              : ""
-          }
+        : ""
+      }
           <div class="totals-row grand">
             <span>Grand Total:</span>
             <span>₹${invoice.total.toLocaleString("en-IN")}</span>
           </div>
         </div>
         
-        ${
-          invoice.notes
-            ? `
+        ${invoice.notes
+        ? `
         <div class="notes-section">
           <div style="font-weight: 700; margin-bottom: 4px; color: #475569; font-size: 12px;">Notes / Special Terms:</div>
           <div>${invoice.notes}</div>
         </div>
         `
-            : ""
-        }
+        : ""
+      }
         
         <div class="footer">
           <p>Thank you for choosing KSC SOFA ND CHAIR HOUSE!</p>
@@ -370,12 +374,12 @@ function InvoicesPage() {
         z-index: 999999;
       }
       body.printing-active #print-section .invoice-box { max-width: 800px; margin: auto; }
-      body.printing-active #print-section .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+      body.printing-active #print-section .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
       body.printing-active #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-      body.printing-active #print-section .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
+      body.printing-active #print-section .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; line-height: 1.1; }
       body.printing-active #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
       body.printing-active #print-section .details-table td { width: 50%; vertical-align: top; }
-      body.printing-active #print-section .invoice-info { text-align: right; }
+      body.printing-active #print-section .invoice-info { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
       body.printing-active #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
       body.printing-active #print-section .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
       body.printing-active #print-section .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
@@ -406,7 +410,7 @@ function InvoicesPage() {
     // so that the asynchronous print preview capture on mobile can fetch the perfect styled layout,
     // and then cleanly restores the original screen view.
     setTimeout(cleanup, 3000);
-    
+
     // Trigger browser print
     window.print();
   };
@@ -432,26 +436,15 @@ function InvoicesPage() {
         )
         .join("");
 
-      const tempContainer = document.createElement("div");
-      tempContainer.style.position = "absolute";
-      tempContainer.style.left = "-9999px";
-      tempContainer.style.top = "-9999px";
-      tempContainer.style.width = "800px";
-      tempContainer.style.background = "white";
-      tempContainer.style.fontFamily = "system-ui, -apple-system, sans-serif";
-      tempContainer.style.padding = "40px";
-      tempContainer.style.color = "#1e293b";
-      tempContainer.style.lineHeight = "1.5";
-
-      tempContainer.innerHTML = `
+      const htmlContent = `
         <style>
-          .invoice-box { max-width: 800px; margin: auto; }
-          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+          .invoice-box { max-width: 800px; margin: auto; background: white; font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
           .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-          .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
+          .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; line-height: 1.1; }
           .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
           .details-table td { width: 50%; vertical-align: top; }
-          .invoice-info { text-align: right; }
+          .invoice-info { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
           .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
           .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
           .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
@@ -465,7 +458,7 @@ function InvoicesPage() {
             <div>
               <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
               <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
-              <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 99999 88888</div>
+              <div style="font-size: 12px; color: #64748b;">Maltekdi Railway Station Road Nanded | Mob: +91 9028887909</div>
             </div>
             <div class="invoice-info">
               <h1 class="invoice-title">INVOICE</h1>
@@ -509,32 +502,30 @@ function InvoicesPage() {
               <span>Subtotal:</span>
               <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
             </div>
-            ${
-              invoice.discount > 0
-                ? `
+            ${invoice.discount > 0
+          ? `
             <div class="totals-row" style="color: #ef4444;">
               <span>Discount:</span>
               <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
             </div>
             `
-                : ""
-            }
+          : ""
+        }
             <div class="totals-row grand">
               <span>Grand Total:</span>
               <span>₹${invoice.total.toLocaleString("en-IN")}</span>
             </div>
           </div>
           
-          ${
-            invoice.notes
-              ? `
+          ${invoice.notes
+          ? `
           <div class="notes-section">
             <div style="font-weight: 700; margin-bottom: 4px; color: #475569; font-size: 12px;">Notes / Special Terms:</div>
             <div>${invoice.notes}</div>
           </div>
           `
-              : ""
-          }
+          : ""
+        }
           
           <div class="footer">
             <p>Thank you for choosing KSC SOFA ND CHAIR HOUSE!</p>
@@ -543,82 +534,128 @@ function InvoicesPage() {
         </div>
       `;
 
-      document.body.appendChild(tempContainer);
-
       const opt = {
-        margin:       10,
-        filename:     `Invoice-${invoice.id}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin: 10,
+        filename: `Invoice-${invoice.id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
       // Generate the PDF blob
       // @ts-ignore
-      const pdfBlob = await html2pdf().from(tempContainer).set(opt).outputPdf('blob');
-      
-      // Cleanup temp DOM element
-      tempContainer.remove();
+      const pdfBlob = await html2pdf().from(htmlContent).set(opt).outputPdf('blob');
 
-      // Create a file object for sharing
       const fileName = `Invoice-${invoice.id}.pdf`;
-      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-      // Share or download flow
-      let shared = false;
-
-      // Try Native Web Share API if supported (excellent on mobile browsers)
+      // Check if navigator.share supports file sharing (primarily mobile viewports)
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+      
+      let sharedLocally = false;
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
         try {
           await navigator.share({
             files: [pdfFile],
-            title: `Invoice #${invoice.id}`,
-            text: `Please find attached Invoice #${invoice.id} from KSC SOFA ND CHAIR HOUSE.`
+            title: fileName,
+            text: `Invoice #${invoice.id} from KSC SOFA ND CHAIR HOUSE`
           });
-          shared = true;
+          sharedLocally = true;
           toast.success("Invoice shared successfully!", { id: toastId });
+          return;
         } catch (shareErr) {
-          console.warn("Native share failed or cancelled:", shareErr);
+          console.log("User cancelled share or share failed, falling back to download/link.", shareErr);
         }
       }
 
-      // If sharing was not completed via Native Share (desktop browsers or user cancel/fallback)
-      if (!shared) {
-        // Trigger auto-download
-        const downloadUrl = URL.createObjectURL(pdfBlob);
-        const a = document.createElement("a");
-        a.href = downloadUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
+      // Fallback for PC/Laptop (or if share failed)
+      if (!sharedLocally) {
+        // 1. Download the PDF file locally on their computer
+        const fileURL = window.URL.createObjectURL(pdfBlob);
+        const fileLink = document.createElement('a');
+        fileLink.href = fileURL;
+        fileLink.setAttribute('download', fileName);
+        document.body.appendChild(fileLink);
+        fileLink.click();
+        fileLink.remove();
 
-        // Open WhatsApp Web with text
-        const text = encodeURIComponent(
-          `*KSC SOFA ND CHAIR HOUSE — Invoice Summary*\n\n` +
-          `*Invoice #:* ${invoice.id}\n` +
-          `*Date:* ${invoice.date}\n` +
-          `*Billed To:* ${invoice.customerName}\n` +
-          `*Total Amount:* ₹${invoice.total.toLocaleString("en-IN")}\n\n` +
-          `I have downloaded the invoice PDF (*${fileName}*). Please attach the downloaded file here.\n\n` +
-          `Thank you for shopping with us!`
+        // 2. Convert Blob to base64 and upload to server to get shareable absoluteUrl (if they still want to copy the link)
+        const blobToBase64 = (blob: Blob): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        };
+        const base64Data = await blobToBase64(pdfBlob);
+
+        toast.loading("Uploading PDF to server...", { id: toastId });
+
+        const uploadResult = await apiService.uploadInvoicePdf(
+          fileName,
+          base64Data,
+          invoice.customerPhone,
+          "",
+          false // sendDirectWhatsApp = false
         );
-        const phoneClean = invoice.customerPhone.replace(/[^0-9]/g, "");
-        const url = phoneClean ? `https://wa.me/${phoneClean}?text=${text}` : `https://wa.me/?text=${text}`;
-        
-        window.open(url, "_blank");
-        
-        toast.success("PDF downloaded. Opening WhatsApp! Please attach the downloaded file.", { 
+
+        // 3. Open WhatsApp Web directly to the customer's chat
+        let cleanedPhone = (invoice.customerPhone || "").replace(/[^0-9]/g, "");
+        if (cleanedPhone.length === 10) {
+          cleanedPhone = "91" + cleanedPhone; // default to India
+        }
+
+        const shareText = `Dear ${invoice.customerName}, thank you for choosing KSC SOFA ND CHAIR HOUSE. Here is your invoice: ${uploadResult.absoluteUrl}`;
+        const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanedPhone}&text=${encodeURIComponent(shareText)}`;
+
+        // Open WhatsApp sharing link in a new tab
+        window.open(whatsappUrl, "_blank");
+
+        toast.success("PDF downloaded! Drag the file from the download bar into the WhatsApp window to send.", {
           id: toastId,
-          duration: 6000 
+          duration: 7000
         });
       }
     } catch (err: any) {
       console.error("PDF generation/sharing error:", err);
-      toast.error("Failed to generate or share PDF. Please print instead.", { id: toastId });
+      toast.error(err.message || "Failed to send PDF via WhatsApp.", { id: toastId });
     }
   };
+
+  // Poll WhatsApp status when QR Modal is open
+  useEffect(() => {
+    if (!qrModalOpen) return;
+
+    let isSubscribed = true;
+    const checkStatus = async () => {
+      try {
+        const status = await apiService.getWhatsAppStatus();
+        if (!isSubscribed) return;
+        setQrCodeUrl(status.qr);
+        
+        if (status.connected) {
+          setQrModalOpen(false);
+          toast.success("WhatsApp connected successfully! Sending invoice...");
+          if (pendingInvoice) {
+            handleShareWhatsApp(pendingInvoice);
+            setPendingInvoice(null);
+          }
+        }
+      } catch (err) {
+        console.error("Error checking WhatsApp status:", err);
+      }
+    };
+
+    // Initial check
+    checkStatus();
+
+    const intervalId = setInterval(checkStatus, 3000);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(intervalId);
+    };
+  }, [qrModalOpen, pendingInvoice]);
 
   // Mailto link trigger
   const handleShareEmail = (invoice: Invoice) => {
@@ -662,20 +699,20 @@ function InvoicesPage() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search invoice number, customer..." 
-                    className="pl-9" 
-                    value={q} 
-                    onChange={(e) => setQ(e.target.value)} 
+                  <Input
+                    placeholder="Search invoice number, customer..."
+                    className="pl-9"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
                   />
                 </div>
                 <div className="relative w-full sm:w-[200px]">
                   <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input 
-                    type="date" 
-                    className="pl-9" 
-                    value={filterDate} 
-                    onChange={(e) => setFilterDate(e.target.value)} 
+                  <Input
+                    type="date"
+                    className="pl-9"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
                   />
                 </div>
                 {(q || filterDate) && (
@@ -718,36 +755,36 @@ function InvoicesPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
                               onClick={() => setPreviewInvoice(inv)}
                               title="Preview Invoice"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                               onClick={() => handleEditInvoice(inv)}
                               title="Edit Invoice"
                             >
                               <FileEdit className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8 text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                               onClick={() => handlePrint(inv)}
                               title="Print / Save PDF"
                             >
                               <Printer className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8 text-destructive hover:bg-destructive/5"
                               onClick={() => handleDeleteInvoice(inv.id)}
                               title="Delete Invoice"
@@ -803,11 +840,11 @@ function InvoicesPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="invoice-date">Invoice Date</Label>
-                    <Input 
-                      type="date" 
-                      id="invoice-date" 
-                      value={invoiceDate} 
-                      onChange={(e) => setInvoiceDate(e.target.value)} 
+                    <Input
+                      type="date"
+                      id="invoice-date"
+                      value={invoiceDate}
+                      onChange={(e) => setInvoiceDate(e.target.value)}
                     />
                   </div>
                 </div>
@@ -815,33 +852,33 @@ function InvoicesPage() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="cust-name" className="flex items-center gap-1"><User className="h-3.5 w-3.5 text-muted-foreground" /> Customer Name</Label>
-                    <Input 
-                      id="cust-name" 
-                      placeholder="e.g. Suresh Kumar" 
-                      value={customerName} 
+                    <Input
+                      id="cust-name"
+                      placeholder="e.g. Suresh Kumar"
+                      value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      disabled={selectedPartyId !== "manual"} 
+                      disabled={selectedPartyId !== "manual"}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="cust-phone" className="flex items-center gap-1"><Phone className="h-3.5 w-3.5 text-muted-foreground" /> Mobile Number</Label>
-                    <Input 
-                      id="cust-phone" 
-                      placeholder="e.g. +91 98989 00000" 
-                      value={customerPhone} 
+                    <Input
+                      id="cust-phone"
+                      placeholder="e.g. +91 98989 00000"
+                      value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
-                      disabled={selectedPartyId !== "manual"} 
+                      disabled={selectedPartyId !== "manual"}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="cust-addr" className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-muted-foreground" /> Delivery Address</Label>
-                  <Input 
-                    id="cust-addr" 
-                    placeholder="Enter customer's physical/billing address" 
-                    value={customerAddress} 
-                    onChange={(e) => setCustomerAddress(e.target.value)} 
+                  <Input
+                    id="cust-addr"
+                    placeholder="Enter customer's physical/billing address"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
                   />
                 </div>
               </CardContent>
@@ -875,10 +912,10 @@ function InvoicesPage() {
                     </div>
                     <div className="sm:col-span-6 space-y-1.5">
                       <Label htmlFor="item-desc">Item Description</Label>
-                      <Input 
-                        id="item-desc" 
-                        placeholder="e.g. Solid Wood Sheesham Sofa Set" 
-                        value={itemName} 
+                      <Input
+                        id="item-desc"
+                        placeholder="e.g. Solid Wood Sheesham Sofa Set"
+                        value={itemName}
                         onChange={(e) => {
                           const val = e.target.value;
                           setItemName(val);
@@ -887,7 +924,7 @@ function InvoicesPage() {
                           } else {
                             setSelectedFurniture(val);
                           }
-                        }} 
+                        }}
                       />
                     </div>
                   </div>
@@ -895,24 +932,24 @@ function InvoicesPage() {
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-12 sm:items-end">
                     <div className="sm:col-span-4 space-y-1.5">
                       <Label htmlFor="item-qty">Quantity</Label>
-                      <Input 
-                        type="number" 
-                        id="item-qty" 
-                        placeholder="1" 
-                        value={itemQty} 
-                        onChange={(e) => setItemQty(e.target.value)} 
-                        min="1" 
+                      <Input
+                        type="number"
+                        id="item-qty"
+                        placeholder="1"
+                        value={itemQty}
+                        onChange={(e) => setItemQty(e.target.value)}
+                        min="1"
                       />
                     </div>
                     <div className="sm:col-span-5 space-y-1.5">
                       <Label htmlFor="item-price">Unit Price (₹)</Label>
-                      <Input 
-                        type="number" 
-                        id="item-price" 
-                        placeholder="0" 
-                        value={itemPrice} 
-                        onChange={(e) => setItemPrice(e.target.value)} 
-                        min="0" 
+                      <Input
+                        type="number"
+                        id="item-price"
+                        placeholder="0"
+                        value={itemPrice}
+                        onChange={(e) => setItemPrice(e.target.value)}
+                        min="0"
                       />
                     </div>
                     <div className="sm:col-span-3">
@@ -945,9 +982,9 @@ function InvoicesPage() {
                             {formatINR(item.quantity * item.price)}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-7 w-7 text-destructive hover:bg-destructive/5"
                               onClick={() => handleRemoveItem(item.id)}
                             >
@@ -986,13 +1023,13 @@ function InvoicesPage() {
 
                   <div className="space-y-1.5">
                     <Label htmlFor="disc-input" className="text-xs text-muted-foreground">Apply Cash Discount (₹)</Label>
-                    <Input 
-                      type="number" 
-                      id="disc-input" 
-                      placeholder="0" 
-                      value={discount} 
-                      onChange={(e) => setDiscount(e.target.value)} 
-                      min="0" 
+                    <Input
+                      type="number"
+                      id="disc-input"
+                      placeholder="0"
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                      min="0"
                       className="bg-white"
                     />
                   </div>
@@ -1005,10 +1042,10 @@ function InvoicesPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="inv-notes" className="text-xs">Invoice Notes (Prints on PDF)</Label>
-                  <Textarea 
-                    id="inv-notes" 
-                    placeholder="Enter any warranty details, delivery notes or payment terms here..." 
-                    value={notes} 
+                  <Textarea
+                    id="inv-notes"
+                    placeholder="Enter any warranty details, delivery notes or payment terms here..."
+                    value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="bg-white h-20"
                   />
@@ -1016,10 +1053,10 @@ function InvoicesPage() {
 
                 <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-3.5 space-y-2">
                   <div className="flex items-center gap-2">
-                    <input 
-                      type="checkbox" 
-                      id="sync-ledger-chk" 
-                      checked={syncToLedger} 
+                    <input
+                      type="checkbox"
+                      id="sync-ledger-chk"
+                      checked={syncToLedger}
                       onChange={(e) => setSyncToLedger(e.target.checked)}
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                     />
@@ -1062,26 +1099,26 @@ function InvoicesPage() {
                     <p className="text-xs text-muted-foreground mt-1">Generated on {previewInvoice.date}</p>
                   </div>
                   <div className="flex items-center gap-1.5 self-start">
-                    <Button 
-                      onClick={() => handlePrint(previewInvoice)} 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      onClick={() => handlePrint(previewInvoice)}
+                      variant="outline"
+                      size="sm"
                       className="flex items-center gap-1 text-slate-700 border-slate-300"
                     >
                       <Printer className="h-3.5 w-3.5" /> Print / Save PDF
                     </Button>
-                    <Button 
-                      onClick={() => handleShareWhatsApp(previewInvoice)} 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      onClick={() => handleShareWhatsApp(previewInvoice)}
+                      variant="outline"
+                      size="sm"
                       className="flex items-center gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
                     >
                       <MessageCircle className="h-3.5 w-3.5 text-emerald-600" /> WhatsApp
                     </Button>
-                    <Button 
-                      onClick={() => handleShareEmail(previewInvoice)} 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      onClick={() => handleShareEmail(previewInvoice)}
+                      variant="outline"
+                      size="sm"
                       className="flex items-center gap-1 text-sky-700 border-sky-200 hover:bg-sky-50"
                     >
                       <Mail className="h-3.5 w-3.5 text-sky-500" /> Email
@@ -1102,8 +1139,8 @@ function InvoicesPage() {
                       Premium Wooden & Home Furniture
                     </p>
                     <p className="text-xs text-slate-400 mt-2">
-                      Noida, Uttar Pradesh, India<br />
-                      Mob: +91 99999 88888 | info@kscsofachairhouse.com
+                      Maltekdi Railway Station Road Nanded<br />
+                      Mob: +91 9028887909
                     </p>
                   </div>
                   <div className="sm:text-right">
@@ -1231,6 +1268,56 @@ function InvoicesPage() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* WHATSAPP CONNECTION MODAL */}
+      <Dialog open={qrModalOpen} onOpenChange={setQrModalOpen}>
+        <DialogContent className="max-w-md p-6 border-slate-300">
+          <DialogHeader className="pb-4 border-b">
+            <DialogTitle className="flex items-center gap-2 text-xl font-serif">
+              <MessageCircle className="h-6 w-6 text-emerald-600" /> Link WhatsApp
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Scan this barcode/QR code using WhatsApp on your phone to link your account and send invoices.
+            </p>
+          </DialogHeader>
+
+          <div className="flex flex-col items-center justify-center py-6 space-y-4">
+            {qrCodeUrl ? (
+              <div className="bg-white p-3 rounded-lg border shadow-sm flex flex-col items-center justify-center">
+                <img
+                  src={qrCodeUrl}
+                  alt="WhatsApp QR Code"
+                  className="w-64 h-64 object-contain animate-fade-in"
+                />
+                <span className="text-[11px] text-slate-400 mt-2 font-sans">QR Code updates periodically.</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 w-64 border rounded-lg bg-slate-50/50 space-y-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                <span className="text-sm font-medium text-slate-500 font-sans">Generating barcode...</span>
+                <span className="text-xs text-slate-400 text-center px-4 font-sans font-light">This might take a moment if the backend is initializing.</span>
+              </div>
+            )}
+
+            <div className="text-sm text-slate-600 space-y-2 max-w-sm font-sans">
+              <p className="font-semibold text-slate-800">Steps to connect:</p>
+              <ol className="list-decimal pl-4 space-y-1 text-xs text-slate-600 font-light">
+                <li>Open <strong>WhatsApp</strong> on your phone.</li>
+                <li>Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong>.</li>
+                <li>Tap <strong>Link a Device</strong> and point your camera to this screen to scan the barcode.</li>
+              </ol>
+              <p className="text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 mt-3 font-sans font-normal leading-relaxed">
+                <strong>Note for mobile users:</strong> If you are on a mobile screen, please take a screenshot/photo of this QR code and scan it with another phone, or open this system on a PC/laptop screen.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="pt-4 border-t">
+            <Button variant="outline" onClick={() => setQrModalOpen(false)} className="w-full">
+              Close / Cancel
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -17,7 +17,7 @@ const getApiBaseUrl = () => {
   return 'https://kaka-furniture-backend.onrender.com/api';
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || getApiBaseUrl();
+export const API_BASE_URL = import.meta.env.VITE_API_URL || getApiBaseUrl();
 
 // Generic fetch wrapper to handle errors consistently
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -122,5 +122,28 @@ export const apiService = {
     return apiFetch<void>(`/invoices/${invoiceId}`, {
       method: 'DELETE',
     });
+  },
+
+  async uploadInvoicePdf(
+    fileName: string,
+    fileData: string,
+    phone?: string,
+    caption?: string,
+    sendDirectWhatsApp?: boolean
+  ): Promise<{ fileUrl: string; absoluteUrl: string; directSent: boolean; error: string | null }> {
+    return apiFetch<{ fileUrl: string; absoluteUrl: string; directSent: boolean; error: string | null }>('/invoices/upload-pdf', {
+      method: 'POST',
+      body: JSON.stringify({
+        fileName,
+        fileData,
+        phone,
+        caption,
+        sendDirectWhatsApp,
+      }),
+    });
+  },
+
+  async getWhatsAppStatus(): Promise<{ connected: boolean; qr: string | null }> {
+    return apiFetch<{ connected: boolean; qr: string | null }>('/whatsapp/status');
   },
 };
