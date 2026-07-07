@@ -19,5 +19,10 @@ export default defineConfig({
     server: {
       allowedHosts: ["spearmint-edginess-hyphen.ngrok-free.dev", ".ngrok-free.dev"],
     },
+    resolve: {
+      alias: {
+        html2canvas: "html2canvas-pro",
+      },
+    },
   },
 });

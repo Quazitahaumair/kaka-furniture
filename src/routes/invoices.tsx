@@ -19,6 +19,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const PREDEFINED_FURNITURE = [
+  "Low back revolving",
+  "Low back s type",
+  "Net boom chair",
+  "Net matrix",
+  "Amazon chair",
+  "Amazon hy",
+  "Black beauty",
+  "Samosa pattern",
+];
+
 export const Route = createFileRoute("/invoices")({
   head: () => ({ meta: [{ title: "Invoice Generator — KSC SOFA ND CHAIR HOUSE" }] }),
   component: InvoicesPage,
@@ -53,6 +64,7 @@ function InvoicesPage() {
   const [syncToLedger, setSyncToLedger] = useState(true);
 
   // New Item State (for adding rows to invoice)
+  const [selectedFurniture, setSelectedFurniture] = useState<string>("manual");
   const [itemName, setItemName] = useState("");
   const [itemQty, setItemQty] = useState("1");
   const [itemPrice, setItemPrice] = useState("");
@@ -85,6 +97,16 @@ function InvoicesPage() {
     }
   };
 
+  // Handle furniture selection change
+  const handleFurnitureChange = (value: string) => {
+    setSelectedFurniture(value);
+    if (value !== "manual") {
+      setItemName(value);
+    } else {
+      setItemName("");
+    }
+  };
+
 
 
   // Add item to invoice rows
@@ -106,6 +128,7 @@ function InvoicesPage() {
     setItemName("");
     setItemQty("1");
     setItemPrice("");
+    setSelectedFurniture("manual");
     toast.success("Item added to list");
   };
 
@@ -171,6 +194,7 @@ function InvoicesPage() {
     setItemName("");
     setItemQty("1");
     setItemPrice("");
+    setSelectedFurniture("manual");
   };
 
   // Load Invoice for Edit
@@ -388,20 +412,212 @@ function InvoicesPage() {
   };
 
   // WhatsApp Web share URL trigger
-  const handleShareWhatsApp = (invoice: Invoice) => {
-    const text = encodeURIComponent(
-      `*KSC SOFA ND CHAIR HOUSE — Invoice Summary*\n\n` +
-      `*Invoice #:* ${invoice.id}\n` +
-      `*Date:* ${invoice.date}\n` +
-      `*Billed To:* ${invoice.customerName}\n` +
-      `*Total Amount:* ₹${invoice.total.toLocaleString("en-IN")}\n\n` +
-      `Please contact us if you have any questions.\n` +
-      `Thank you for shopping with us!`
-    );
-    const phoneClean = invoice.customerPhone.replace(/[^0-9]/g, "");
-    // If phone has a format like '+91 ...' we want to make sure it includes country code but no spaces.
-    const url = phoneClean ? `https://wa.me/${phoneClean}?text=${text}` : `https://wa.me/?text=${text}`;
-    window.open(url, "_blank");
+  const handleShareWhatsApp = async (invoice: Invoice) => {
+    const toastId = toast.loading("Generating Invoice PDF...");
+    try {
+      // @ts-ignore
+      const html2pdf = (await import("html2pdf.js")).default;
+
+      // 1. Build the HTML content
+      const itemsHtml = invoice.items
+        .map(
+          (item) => `
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.name}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${item.quantity}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600;">₹${(item.quantity * item.price).toLocaleString("en-IN")}</td>
+          </tr>
+        `
+        )
+        .join("");
+
+      const tempContainer = document.createElement("div");
+      tempContainer.style.position = "absolute";
+      tempContainer.style.left = "-9999px";
+      tempContainer.style.top = "-9999px";
+      tempContainer.style.width = "800px";
+      tempContainer.style.background = "white";
+      tempContainer.style.fontFamily = "system-ui, -apple-system, sans-serif";
+      tempContainer.style.padding = "40px";
+      tempContainer.style.color = "#1e293b";
+      tempContainer.style.lineHeight = "1.5";
+
+      tempContainer.innerHTML = `
+        <style>
+          .invoice-box { max-width: 800px; margin: auto; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+          .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
+          .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; }
+          .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          .details-table td { width: 50%; vertical-align: top; }
+          .invoice-info { text-align: right; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
+          .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+          .totals-row.grand { border-top: 2px solid #0f172a; font-size: 18px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
+          .notes-section { font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 20px; margin-top: 20px; }
+          .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+        </style>
+        <div class="invoice-box">
+          <div class="header">
+            <div>
+              <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
+              <div style="font-size: 12px; color: #64748b;">Noida, India | Mob: +91 99999 88888</div>
+            </div>
+            <div class="invoice-info">
+              <h1 class="invoice-title">INVOICE</h1>
+              <div style="font-size: 15px; font-weight: 700; margin-top: 5px;">#${invoice.id}</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Date: ${invoice.date}</div>
+            </div>
+          </div>
+          
+          <table class="details-table">
+            <tr>
+              <td>
+                <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Billed To:</div>
+                <div style="font-weight: 700; font-size: 15px; color: #0f172a;">${invoice.customerName}</div>
+                ${invoice.customerPhone ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Phone: ${invoice.customerPhone}</div>` : ""}
+                ${invoice.customerAddress ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Address: ${invoice.customerAddress}</div>` : ""}
+              </td>
+              <td style="text-align: right;">
+                <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Payment Details:</div>
+                <div style="font-size: 13px; color: #475569;">Payment Method: Udhaar / Ledger Synced</div>
+                <div style="font-size: 13px; color: #475569; margin-top: 2px;">Status: Saved in Ledger</div>
+              </td>
+            </tr>
+          </table>
+          
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Furniture Item</th>
+                <th style="text-align: right; width: 80px;">Qty</th>
+                <th style="text-align: right; width: 120px;">Unit Price</th>
+                <th style="text-align: right; width: 130px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          <div class="totals-box">
+            <div class="totals-row">
+              <span>Subtotal:</span>
+              <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
+            </div>
+            ${
+              invoice.discount > 0
+                ? `
+            <div class="totals-row" style="color: #ef4444;">
+              <span>Discount:</span>
+              <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
+            </div>
+            `
+                : ""
+            }
+            <div class="totals-row grand">
+              <span>Grand Total:</span>
+              <span>₹${invoice.total.toLocaleString("en-IN")}</span>
+            </div>
+          </div>
+          
+          ${
+            invoice.notes
+              ? `
+          <div class="notes-section">
+            <div style="font-weight: 700; margin-bottom: 4px; color: #475569; font-size: 12px;">Notes / Special Terms:</div>
+            <div>${invoice.notes}</div>
+          </div>
+          `
+              : ""
+          }
+          
+          <div class="footer">
+            <p>Thank you for choosing KSC SOFA ND CHAIR HOUSE!</p>
+            <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">This is a system generated document.</p>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(tempContainer);
+
+      const opt = {
+        margin:       10,
+        filename:     `Invoice-${invoice.id}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      // Generate the PDF blob
+      // @ts-ignore
+      const pdfBlob = await html2pdf().from(tempContainer).set(opt).outputPdf('blob');
+      
+      // Cleanup temp DOM element
+      tempContainer.remove();
+
+      // Create a file object for sharing
+      const fileName = `Invoice-${invoice.id}.pdf`;
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      // Share or download flow
+      let shared = false;
+
+      // Try Native Web Share API if supported (excellent on mobile browsers)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        try {
+          await navigator.share({
+            files: [pdfFile],
+            title: `Invoice #${invoice.id}`,
+            text: `Please find attached Invoice #${invoice.id} from KSC SOFA ND CHAIR HOUSE.`
+          });
+          shared = true;
+          toast.success("Invoice shared successfully!", { id: toastId });
+        } catch (shareErr) {
+          console.warn("Native share failed or cancelled:", shareErr);
+        }
+      }
+
+      // If sharing was not completed via Native Share (desktop browsers or user cancel/fallback)
+      if (!shared) {
+        // Trigger auto-download
+        const downloadUrl = URL.createObjectURL(pdfBlob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+
+        // Open WhatsApp Web with text
+        const text = encodeURIComponent(
+          `*KSC SOFA ND CHAIR HOUSE — Invoice Summary*\n\n` +
+          `*Invoice #:* ${invoice.id}\n` +
+          `*Date:* ${invoice.date}\n` +
+          `*Billed To:* ${invoice.customerName}\n` +
+          `*Total Amount:* ₹${invoice.total.toLocaleString("en-IN")}\n\n` +
+          `I have downloaded the invoice PDF (*${fileName}*). Please attach the downloaded file here.\n\n` +
+          `Thank you for shopping with us!`
+        );
+        const phoneClean = invoice.customerPhone.replace(/[^0-9]/g, "");
+        const url = phoneClean ? `https://wa.me/${phoneClean}?text=${text}` : `https://wa.me/?text=${text}`;
+        
+        window.open(url, "_blank");
+        
+        toast.success("PDF downloaded. Opening WhatsApp! Please attach the downloaded file.", { 
+          id: toastId,
+          duration: 6000 
+        });
+      }
+    } catch (err: any) {
+      console.error("PDF generation/sharing error:", err);
+      toast.error("Failed to generate or share PDF. Please print instead.", { id: toastId });
+    }
   };
 
   // Mailto link trigger
@@ -641,13 +857,37 @@ function InvoicesPage() {
                 {/* Row inputs to add new item */}
                 <div className="rounded-lg border bg-slate-50/50 p-4 space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-                    <div className="sm:col-span-12 space-y-1.5">
+                    <div className="sm:col-span-6 space-y-1.5">
+                      <Label htmlFor="furniture-select">Furniture Product</Label>
+                      <Select value={selectedFurniture} onValueChange={handleFurnitureChange}>
+                        <SelectTrigger id="furniture-select">
+                          <SelectValue placeholder="Select Furniture Item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manual">Enter Manually</SelectItem>
+                          {PREDEFINED_FURNITURE.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-6 space-y-1.5">
                       <Label htmlFor="item-desc">Item Description</Label>
                       <Input 
                         id="item-desc" 
                         placeholder="e.g. Solid Wood Sheesham Sofa Set" 
                         value={itemName} 
-                        onChange={(e) => setItemName(e.target.value)} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setItemName(val);
+                          if (!PREDEFINED_FURNITURE.includes(val)) {
+                            setSelectedFurniture("manual");
+                          } else {
+                            setSelectedFurniture(val);
+                          }
+                        }} 
                       />
                     </div>
                   </div>
