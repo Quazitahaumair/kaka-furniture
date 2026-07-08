@@ -422,6 +422,9 @@ function InvoicesPage() {
       // @ts-ignore
       const html2pdf = (await import("html2pdf.js")).default;
 
+      // Detect if user is on mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
       // 1. Build the HTML content
       const itemsHtml = invoice.items
         .map(
@@ -438,7 +441,7 @@ function InvoicesPage() {
 
       const htmlContent = `
         <style>
-          .invoice-box { max-width: 800px; margin: auto; background: white; font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+          .invoice-box { ${isMobile ? "width: 800px;" : "max-width: 800px;"} margin: auto; background: white; font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
           .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
           .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
           .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; line-height: 1.1; }
@@ -537,8 +540,12 @@ function InvoicesPage() {
       const opt = {
         margin: 10,
         filename: `Invoice-${invoice.id}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        image: isMobile 
+          ? { type: 'jpeg', quality: 0.70 } 
+          : { type: 'jpeg', quality: 0.98 },
+        html2canvas: isMobile 
+          ? { scale: 1, useCORS: true, logging: false } 
+          : { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
