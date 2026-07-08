@@ -3,16 +3,20 @@ import {
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useLocation,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { apiService } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -91,6 +95,65 @@ import { AppStateProvider } from "@/context/AppStateContext";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        await apiService.checkSession();
+        setIsAuthenticated(true);
+      } catch (err) {
+        setIsAuthenticated(false);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    checkAuthStatus();
+  }, [location.pathname]);
+
+  // Handle redirects
+  useEffect(() => {
+    if (!authLoading) {
+      if (!isAuthenticated && location.pathname !== "/login") {
+        navigate({ to: "/login" });
+      } else if (isAuthenticated && location.pathname === "/login") {
+        navigate({ to: "/" });
+      }
+    }
+  }, [authLoading, isAuthenticated, location.pathname, navigate]);
+
+  // Bypass layout for login screen
+  if (location.pathname === "/login") {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AppStateProvider>
+          <Outlet />
+          <Toaster richColors position="top-right" />
+        </AppStateProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  // Show secure loading screen for private routes while verifying session
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+          <span className="font-serif text-slate-400 text-sm tracking-wide">Securing Console...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // If unauthenticated, render nothing while redirect takes place
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <AppStateProvider>
@@ -100,17 +163,17 @@ function RootComponent() {
             <div className="flex-1 flex flex-col min-w-0">
               <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
                 <SidebarTrigger />
-              <span className="font-serif text-sm font-semibold tracking-tight text-muted-foreground">
-                KSC SOFA ND CHAIR HOUSE &mdash; Admin Console
-              </span>
-            </header>
-            <main className="flex-1 p-6">
-              <Outlet />
-            </main>
+                <span className="font-serif text-sm font-semibold tracking-tight text-muted-foreground">
+                  KSC SOFA ND &mdash; Admin Console
+                </span>
+              </header>
+              <main className="flex-1 p-6">
+                <Outlet />
+              </main>
+            </div>
           </div>
-        </div>
-        <Toaster richColors position="top-right" />
-      </SidebarProvider>
+          <Toaster richColors position="top-right" />
+        </SidebarProvider>
       </AppStateProvider>
     </QueryClientProvider>
   );

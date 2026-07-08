@@ -1,5 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, ShoppingBag, Package, Users, BarChart3, BookOpen, Armchair, Receipt } from "lucide-react";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { LayoutDashboard, ShoppingBag, Package, Users, BarChart3, BookOpen, Armchair, Receipt, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -10,8 +10,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { apiService } from "@/lib/api";
+import { toast } from "sonner";
 
 const items = [
   { title: "Invoice Generator", url: "/invoices", icon: Receipt },
@@ -21,10 +24,25 @@ const items = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { setOpenMobile, isMobile } = useSidebar();
+  const navigate = useNavigate();
 
   const handleLinkClick = () => {
     if (isMobile) {
       setOpenMobile(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    const toastId = toast.loading("Logging out...");
+    try {
+      await apiService.logout();
+      toast.success("Logged out successfully", { id: toastId });
+      if (isMobile) {
+        setOpenMobile(false);
+      }
+      navigate({ to: "/login" });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to log out", { id: toastId });
     }
   };
 
@@ -64,6 +82,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/20 dark:hover:text-red-400 cursor-pointer"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

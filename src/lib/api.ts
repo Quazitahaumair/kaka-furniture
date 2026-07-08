@@ -23,6 +23,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || getApiBaseUrl();
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    credentials: 'include', // Support HTTP-Only session cookies across origins
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -145,5 +146,23 @@ export const apiService = {
 
   async getWhatsAppStatus(): Promise<{ connected: boolean; qr: string | null }> {
     return apiFetch<{ connected: boolean; qr: string | null }>('/whatsapp/status');
+  },
+
+  // Authentication
+  async login(email: string, password: string): Promise<{ email: string }> {
+    return apiFetch<{ email: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  async logout(): Promise<void> {
+    return apiFetch<void>('/auth/logout', {
+      method: 'POST',
+    });
+  },
+
+  async checkSession(): Promise<{ email: string }> {
+    return apiFetch<{ email: string }>('/auth/me');
   },
 };
