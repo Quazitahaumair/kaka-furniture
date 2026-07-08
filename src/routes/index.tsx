@@ -276,7 +276,7 @@ function KhaataPage() {
         </div>
         
         <div class="footer">
-          <p>For any queries regarding this statement, please contact us at +91 7875992293.</p>
+          <p>For any queries regarding this statement, please contact us at +91 9028887909.</p>
           <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">KSC SOFA ND CHAIR HOUSE Ledger Management Console</p>
         </div>
       </div>
