@@ -218,7 +218,7 @@ function KhaataPage() {
         <div class="header">
           <div>
             <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Manufacturer of Sofas and Office Chairs</div>
             <div style="font-size: 12px; color: #64748b;">Maltekdi Railway Station Road Nanded | Mob: +91 9028887909</div>
           </div>
           <div class="invoice-info">

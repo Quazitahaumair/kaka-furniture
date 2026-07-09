@@ -273,7 +273,7 @@ function InvoicesPage() {
         <div class="header">
           <div>
             <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Premium Wooden & Home Furniture</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Manufacturer of Sofas and Office Chairs</div>
             <div style="font-size: 12px; color: #64748b;">Maltekdi Railway Station Road Nanded | Mob: +91 9028887909</div>
           </div>
           <div class="invoice-info">
@@ -302,7 +302,7 @@ function InvoicesPage() {
         <table class="items-table">
           <thead>
             <tr>
-              <th>Furniture Item</th>
+              <th>Item Details</th>
               <th style="text-align: right; width: 80px;">Qty</th>
               <th style="text-align: right; width: 120px;">Unit Price</th>
               <th style="text-align: right; width: 130px;">Amount</th>
@@ -448,7 +448,7 @@ function InvoicesPage() {
               <tr>
                 <td style="vertical-align: top; padding-bottom: 30px; text-align: left;">
                   <div style="font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; line-height: 1.2;">KSC SOFA ND CHAIR HOUSE</div>
-                  <div style="font-size: 11px; color: #059669; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Premium Wooden & Home Furniture</div>
+                  <div style="font-size: 11px; color: #059669; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Manufacturer of Sofas and Office Chairs</div>
                   <div style="font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.4;">
                     Maltekdi Railway Station Road Nanded<br>
                     Mob: +91 9028887909 
@@ -489,7 +489,7 @@ function InvoicesPage() {
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 35px;">
               <thead>
                 <tr style="background: #0f172a; color: #ffffff;">
-                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: left; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Furniture Item</th>
+                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: left; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Item Details</th>
                   <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 80px;">Qty</th>
                   <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 120px;">Unit Price</th>
                   <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 130px; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">Amount</th>
@@ -1172,7 +1172,7 @@ function InvoicesPage() {
                       KSC SOFA ND CHAIR HOUSE
                     </span>
                     <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold mt-1">
-                      Premium Wooden & Home Furniture
+                      Manufacturer of Sofas and Office Chairs
                     </p>
                     <p className="text-xs text-slate-400 mt-2">
                       Maltekdi Railway Station Road Nanded<br />
