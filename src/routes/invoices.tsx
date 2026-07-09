@@ -567,10 +567,13 @@ function InvoicesPage() {
         filename: `Invoice-${invoice.id}.pdf`,
         image: { type: 'jpeg', quality: 0.90 },
         html2canvas: {
-          scale: isMobile ? 1.5 : 2,
+          scale: 2,
           useCORS: true,
           logging: false,
-          windowWidth: 800
+          windowWidth: 800,
+          width: 800,
+          scrollX: 0,
+          scrollY: 0
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
