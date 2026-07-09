@@ -428,314 +428,71 @@ function InvoicesPage() {
       // 1. Build the HTML content
       const itemsHtml = invoice.items
         .map(
-          (item) => `
-          <tr>
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: left;">${item.name}</td>
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right;">${item.quantity}</td>
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600;">₹${(item.quantity * item.price).toLocaleString("en-IN")}</td>
+          (item, idx) => `
+          <tr style="background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 13px; color: #334155;">${item.name}</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; color: #334155;">${item.quantity}</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; color: #334155;">₹${item.price.toLocaleString("en-IN")}</td>
+            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; color: #0f172a; font-weight: 600;">₹${(item.quantity * item.price).toLocaleString("en-IN")}</td>
           </tr>
         `
         )
         .join("");
 
       const htmlContent = `
-        <style>
-          .invoice-container {
-            ${isMobile ? "width: 800px;" : "max-width: 800px;"}
-            margin: auto;
-            background: #ffffff;
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-            color: #1e293b;
-            line-height: 1.5;
-            border-top: 8px solid #059669; /* Emerald accent banner */
-          }
-          .invoice-inner {
-            padding: 45px;
-          }
-          .header-grid {
-            display: table;
-            width: 100%;
-            border-bottom: 2px solid #f1f5f9;
-            padding-bottom: 30px;
-            margin-bottom: 30px;
-          }
-          .header-left {
-            display: table-cell;
-            vertical-align: top;
-          }
-          .header-right {
-            display: table-cell;
-            vertical-align: top;
-            text-align: right;
-          }
-          .brand-title {
-            font-size: 24px;
-            font-weight: 800;
-            color: #0f172a;
-            letter-spacing: -0.5px;
-            line-height: 1.2;
-          }
-          .brand-subtitle {
-            font-size: 11px;
-            color: #059669;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 4px;
-          }
-          .brand-address {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 8px;
-            line-height: 1.4;
-          }
-          .doc-title {
-            font-size: 32px;
-            font-weight: 900;
-            color: #0f172a;
-            letter-spacing: -1px;
-            margin: 0;
-            line-height: 1;
-          }
-          .invoice-meta {
-            margin-top: 15px;
-            font-size: 13px;
-            color: #475569;
-            display: inline-block;
-            text-align: right;
-          }
-          .meta-item {
-            margin-bottom: 4px;
-          }
-          .meta-label {
-            font-weight: 500;
-            color: #64748b;
-          }
-          .meta-val {
-            font-weight: 700;
-            color: #0f172a;
-          }
-          .details-grid {
-            display: table;
-            width: 100%;
-            margin-bottom: 40px;
-          }
-          .details-col {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
-          }
-          .details-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 20px;
-            margin-right: 10px;
-          }
-          .details-card.right-card {
-            margin-right: 0;
-            margin-left: 10px;
-          }
-          .card-title {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #64748b;
-            letter-spacing: 1.5px;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 6px;
-          }
-          .customer-name {
-            font-size: 15px;
-            font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 6px;
-          }
-          .customer-info {
-            font-size: 13px;
-            color: #475569;
-            margin-bottom: 4px;
-          }
-          .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 35px;
-          }
-          .items-table th {
-            background: #0f172a;
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 12px 14px;
-            text-align: left;
-          }
-          .items-table th:first-child {
-            border-top-left-radius: 6px;
-            border-bottom-left-radius: 6px;
-          }
-          .items-table th:last-child {
-            border-top-right-radius: 6px;
-            border-bottom-right-radius: 6px;
-            text-align: right;
-          }
-          .items-table td {
-            padding: 14px;
-            font-size: 13px;
-            border-bottom: 1px solid #e2e8f0;
-            color: #334155;
-          }
-          .items-table tr:nth-child(even) td {
-            background: #f8fafc;
-          }
-          .totals-grid {
-            display: table;
-            width: 100%;
-            margin-bottom: 45px;
-          }
-          .totals-left {
-            display: table-cell;
-            width: 55%;
-            vertical-align: top;
-          }
-          .totals-right {
-            display: table-cell;
-            width: 45%;
-            vertical-align: top;
-          }
-          .totals-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 16px 20px;
-          }
-          .totals-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            font-size: 13px;
-            color: #475569;
-          }
-          .totals-row.grand-total {
-            border-top: 1.5px solid #0f172a;
-            padding-top: 10px;
-            margin-top: 8px;
-            font-size: 17px;
-            font-weight: 800;
-            color: #0f172a;
-          }
-          .notes-container {
-            border-left: 3px solid #059669;
-            background: #f0fdf4;
-            padding: 15px 20px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #1e293b;
-            margin-right: 15px;
-          }
-          .notes-label {
-            font-weight: 700;
-            color: #047857;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .signatures-grid {
-            display: table;
-            width: 100%;
-            margin-top: 60px;
-            border-top: 1px solid #f1f5f9;
-            padding-top: 40px;
-          }
-          .signature-col {
-            display: table-cell;
-            width: 50%;
-            text-align: center;
-            vertical-align: bottom;
-          }
-          .signature-line {
-            width: 200px;
-            border-bottom: 1.5px solid #94a3b8;
-            margin: 0 auto 10px auto;
-            height: 45px;
-          }
-          .signature-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-          }
-          .footer-section {
-            text-align: center;
-            margin-top: 60px;
-            border-top: 1.5px dashed #e2e8f0;
-            padding-top: 25px;
-            font-size: 11px;
-            color: #94a3b8;
-          }
-          .footer-thanks {
-            font-weight: 700;
-            color: #0f172a;
-            font-size: 12px;
-            margin-bottom: 4px;
-          }
-        </style>
-        
-        <div class="invoice-container">
-          <div class="invoice-inner">
-            <div class="header-grid">
-              <div class="header-left">
-                <div class="brand-title">KSC SOFA ND CHAIR HOUSE</div>
-                <div class="brand-subtitle">Premium Wooden & Home Furniture</div>
-                <div class="brand-address">
-                  Maltekdi Railway Station Road Nanded<br>
-                  Mob: +91 9028887909 | +91 7875992293
-                </div>
-              </div>
-              <div class="header-right">
-                <h1 class="doc-title">INVOICE</h1>
-                <div class="invoice-meta">
-                  <div class="meta-item">
-                    <span class="meta-label">Invoice No: </span>
-                    <span class="meta-val">#${invoice.id}</span>
-                  </div>
-                  <div class="meta-item">
-                    <span class="meta-label">Date: </span>
-                    <span class="meta-val">${invoice.date}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div style="width: 800px; margin: auto; background: #ffffff; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; border-top: 8px solid #059669;">
+          <div style="padding: 45px;">
             
-            <div class="details-grid">
-              <div class="details-col">
-                <div class="details-card">
-                  <div class="card-title">Billed To</div>
-                  <div class="customer-name">${invoice.customerName}</div>
-                  ${invoice.customerPhone ? `<div class="customer-info"><strong>Phone:</strong> ${invoice.customerPhone}</div>` : ""}
-                  ${invoice.customerAddress ? `<div class="customer-info"><strong>Address:</strong> ${invoice.customerAddress}</div>` : ""}
-                </div>
-              </div>
-              <div class="details-col">
-                <div class="details-card right-card">
-                  <div class="card-title">Payment Details</div>
-                  <div class="customer-info"><strong>Payment Method:</strong> Udhaar / Ledger Synced</div>
-                  <div class="customer-info"><strong>Payment Status:</strong> Saved in Ledger</div>
-                </div>
-              </div>
-            </div>
+            <!-- Header Grid -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #f1f5f9;">
+              <tr>
+                <td style="vertical-align: top; padding-bottom: 30px; text-align: left;">
+                  <div style="font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; line-height: 1.2;">KSC SOFA ND CHAIR HOUSE</div>
+                  <div style="font-size: 11px; color: #059669; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Premium Wooden & Home Furniture</div>
+                  <div style="font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.4;">
+                    Maltekdi Railway Station Road Nanded<br>
+                    Mob: +91 9028887909 | +91 7875992293
+                  </div>
+                </td>
+                <td style="vertical-align: top; padding-bottom: 30px; text-align: right;">
+                  <h1 style="font-size: 32px; font-weight: 900; color: #0f172a; letter-spacing: -1px; margin: 0; line-height: 1;">INVOICE</h1>
+                  <div style="margin-top: 15px; font-size: 13px; color: #475569; line-height: 1.4;">
+                    <div><span style="color: #64748b;">Invoice No:</span> <strong style="color: #0f172a;">#${invoice.id}</strong></div>
+                    <div style="margin-top: 4px;"><span style="color: #64748b;">Date:</span> <strong style="color: #0f172a;">${invoice.date}</strong></div>
+                  </div>
+                </td>
+              </tr>
+            </table>
             
-            <table class="items-table">
+            <!-- Details Grid -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+              <tr>
+                <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; min-height: 120px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 1.5px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">Billed To</div>
+                    <div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">${invoice.customerName}</div>
+                    ${invoice.customerPhone ? `<div style="font-size: 13px; color: #475569; margin-bottom: 4px;"><strong>Phone:</strong> ${invoice.customerPhone}</div>` : ""}
+                    ${invoice.customerAddress ? `<div style="font-size: 13px; color: #475569;"><strong>Address:</strong> ${invoice.customerAddress}</div>` : ""}
+                  </div>
+                </td>
+                <td style="width: 50%; vertical-align: top; padding-left: 10px;">
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; min-height: 120px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 1.5px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">Payment Details</div>
+                    <div style="font-size: 13px; color: #475569; margin-bottom: 4px;"><strong>Payment Method:</strong> Udhaar / Ledger Synced</div>
+                    <div style="font-size: 13px; color: #475569;"><strong>Payment Status:</strong> Saved in Ledger</div>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            
+            <!-- Items Table -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 35px;">
               <thead>
-                <tr>
-                  <th style="padding-left: 14px;">Furniture Item</th>
-                  <th style="text-align: right; width: 80px;">Qty</th>
-                  <th style="text-align: right; width: 120px;">Unit Price</th>
-                  <th style="text-align: right; width: 130px; padding-right: 14px;">Amount</th>
+                <tr style="background: #0f172a; color: #ffffff;">
+                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: left; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Furniture Item</th>
+                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 80px;">Qty</th>
+                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 120px;">Unit Price</th>
+                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 130px; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -743,56 +500,64 @@ function InvoicesPage() {
               </tbody>
             </table>
             
-            <div class="totals-grid">
-              <div class="totals-left">
-                ${invoice.notes
-                  ? `
-                  <div class="notes-container">
-                    <div class="notes-label">Notes & Special Terms</div>
-                    <div>${invoice.notes}</div>
-                  </div>
-                  `
-                  : ""
-                }
-              </div>
-              <div class="totals-right">
-                <div class="totals-card">
-                  <div class="totals-row">
-                    <span>Subtotal:</span>
-                    <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  ${invoice.discount > 0
+            <!-- Totals Grid -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 45px;">
+              <tr>
+                <td style="width: 55%; vertical-align: top; padding-right: 20px; text-align: left;">
+                  ${invoice.notes
                     ? `
-                    <div class="totals-row" style="color: #ef4444;">
-                      <span>Discount:</span>
-                      <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
+                    <div style="border-left: 3px solid #059669; background: #f0fdf4; padding: 15px 20px; border-radius: 4px; font-size: 12px; color: #1e293b; text-align: left;">
+                      <div style="font-weight: 700; color: #047857; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Notes & Special Terms</div>
+                      <div>${invoice.notes}</div>
                     </div>
                     `
                     : ""
                   }
-                  <div class="totals-row grand-total">
-                    <span>Grand Total:</span>
-                    <span>₹${invoice.total.toLocaleString("en-IN")}</span>
+                </td>
+                <td style="width: 45%; vertical-align: top;">
+                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px;">
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #475569;">
+                      <span>Subtotal:</span>
+                      <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
+                    </div>
+                    ${invoice.discount > 0
+                      ? `
+                      <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #ef4444;">
+                        <span>Discount:</span>
+                        <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
+                      </div>
+                      `
+                      : ""
+                    }
+                    <div style="display: flex; justify-content: space-between; border-top: 1.5px solid #0f172a; padding-top: 10px; margin-top: 8px; font-size: 17px; font-weight: 800; color: #0f172a;">
+                      <span>Grand Total:</span>
+                      <span>₹${invoice.total.toLocaleString("en-IN")}</span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                </td>
+              </tr>
+            </table>
             
-            <div class="signatures-grid">
-              <div class="signature-col">
-                <div class="signature-line"></div>
-                <div class="signature-label">Customer Signature</div>
-              </div>
-              <div class="signature-col">
-                <div class="signature-line"></div>
-                <div class="signature-label">Authorized Signatory</div>
-              </div>
-            </div>
+            <!-- Signatures Section -->
+            <table style="width: 100%; border-collapse: collapse; margin-top: 60px; border-top: 1px solid #f1f5f9; padding-top: 40px;">
+              <tr>
+                <td style="width: 50%; text-align: center; vertical-align: bottom;">
+                  <div style="width: 200px; border-bottom: 1.5px solid #94a3b8; margin: 0 auto 10px auto; height: 45px;"></div>
+                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Customer Signature</div>
+                </td>
+                <td style="width: 50%; text-align: center; vertical-align: bottom;">
+                  <div style="width: 200px; border-bottom: 1.5px solid #94a3b8; margin: 0 auto 10px auto; height: 45px;"></div>
+                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Authorized Signatory</div>
+                </td>
+              </tr>
+            </table>
             
-            <div class="footer-section">
-              <div class="footer-thanks">Thank you for choosing KSC SOFA ND CHAIR HOUSE!</div>
+            <!-- Footer -->
+            <div style="text-align: center; margin-top: 60px; border-top: 1.5px dashed #e2e8f0; padding-top: 25px; font-size: 11px; color: #94a3b8;">
+              <div style="font-weight: 700; color: #0f172a; font-size: 12px; margin-bottom: 4px;">Thank you for choosing KSC SOFA ND CHAIR HOUSE!</div>
               <div>This is a computer generated document and does not require a physical signature unless signed above.</div>
             </div>
+            
           </div>
         </div>
       `;
