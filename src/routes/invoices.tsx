@@ -451,7 +451,7 @@ function InvoicesPage() {
                   <div style="font-size: 11px; color: #059669; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Premium Wooden & Home Furniture</div>
                   <div style="font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.4;">
                     Maltekdi Railway Station Road Nanded<br>
-                    Mob: +91 9028887909 | +91 7875992293
+                    Mob: +91 9028887909 
                   </div>
                 </td>
                 <td style="vertical-align: top; padding-bottom: 30px; text-align: right;">
@@ -505,14 +505,14 @@ function InvoicesPage() {
               <tr>
                 <td style="width: 55%; vertical-align: top; padding-right: 20px; text-align: left;">
                   ${invoice.notes
-                    ? `
+          ? `
                     <div style="border-left: 3px solid #059669; background: #f0fdf4; padding: 15px 20px; border-radius: 4px; font-size: 12px; color: #1e293b; text-align: left;">
                       <div style="font-weight: 700; color: #047857; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Notes & Special Terms</div>
                       <div>${invoice.notes}</div>
                     </div>
                     `
-                    : ""
-                  }
+          : ""
+        }
                 </td>
                 <td style="width: 45%; vertical-align: top;">
                   <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px;">
@@ -521,14 +521,14 @@ function InvoicesPage() {
                       <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
                     </div>
                     ${invoice.discount > 0
-                      ? `
+          ? `
                       <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #ef4444;">
                         <span>Discount:</span>
                         <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
                       </div>
                       `
-                      : ""
-                    }
+          : ""
+        }
                     <div style="display: flex; justify-content: space-between; border-top: 1.5px solid #0f172a; padding-top: 10px; margin-top: 8px; font-size: 17px; font-weight: 800; color: #0f172a;">
                       <span>Grand Total:</span>
                       <span>₹${invoice.total.toLocaleString("en-IN")}</span>
@@ -565,12 +565,13 @@ function InvoicesPage() {
       const opt = {
         margin: 10,
         filename: `Invoice-${invoice.id}.pdf`,
-        image: isMobile 
-          ? { type: 'jpeg', quality: 0.70 } 
-          : { type: 'jpeg', quality: 0.98 },
-        html2canvas: isMobile 
-          ? { scale: 1, useCORS: true, logging: false } 
-          : { scale: 2, useCORS: true, logging: false },
+        image: { type: 'jpeg', quality: 0.90 },
+        html2canvas: {
+          scale: isMobile ? 1.5 : 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: 800
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
@@ -582,7 +583,7 @@ function InvoicesPage() {
 
       // Check if navigator.share supports file sharing (primarily mobile viewports)
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
-      
+
       let sharedLocally = false;
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
         try {
@@ -664,7 +665,7 @@ function InvoicesPage() {
         const status = await apiService.getWhatsAppStatus();
         if (!isSubscribed) return;
         setQrCodeUrl(status.qr);
-        
+
         if (status.connected) {
           setQrModalOpen(false);
           toast.success("WhatsApp connected successfully! Sending invoice...");
