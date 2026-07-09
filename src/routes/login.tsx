@@ -26,7 +26,7 @@ function LoginPage() {
       try {
         await apiService.checkSession();
         // If successful, redirect to dashboard immediately
-        navigate({ to: "/" });
+        navigate({ to: "/", replace: true });
       } catch (err) {
         // Session is not active, remain on login page
       }
@@ -48,7 +48,7 @@ function LoginPage() {
       await apiService.login(email.trim(), password);
       toast.success("Welcome back! Redirecting...", { id: toastId });
       // Redirect to dashboard
-      navigate({ to: "/" });
+      navigate({ to: "/", replace: true });
     } catch (err: any) {
       toast.error(err.message || "Failed to log in. Please check your credentials.", { id: toastId });
     } finally {

@@ -102,6 +102,12 @@ function RootComponent() {
 
   useEffect(() => {
     const checkAuthStatus = async () => {
+      // Avoid redundant checkSession API calls if session is already active
+      if (isAuthenticated && location.pathname !== "/login") {
+        setAuthLoading(false);
+        return;
+      }
+
       try {
         await apiService.checkSession();
         setIsAuthenticated(true);
@@ -112,15 +118,15 @@ function RootComponent() {
       }
     };
     checkAuthStatus();
-  }, [location.pathname]);
+  }, [location.pathname, isAuthenticated]);
 
   // Handle redirects
   useEffect(() => {
     if (!authLoading) {
       if (!isAuthenticated && location.pathname !== "/login") {
-        navigate({ to: "/login" });
+        navigate({ to: "/login", replace: true });
       } else if (isAuthenticated && location.pathname === "/login") {
-        navigate({ to: "/" });
+        navigate({ to: "/", replace: true });
       }
     }
   }, [authLoading, isAuthenticated, location.pathname, navigate]);

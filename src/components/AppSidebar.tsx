@@ -40,7 +40,7 @@ export function AppSidebar() {
       if (isMobile) {
         setOpenMobile(false);
       }
-      navigate({ to: "/login" });
+      navigate({ to: "/login", replace: true });
     } catch (err: any) {
       toast.error(err.message || "Failed to log out", { id: toastId });
     }
