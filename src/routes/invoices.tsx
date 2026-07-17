@@ -21,15 +21,63 @@ import { toast } from "sonner";
 import { apiService, API_BASE_URL } from "@/lib/api";
 
 const PREDEFINED_FURNITURE = [
-  "Low back revolving",
-  "Low back s type",
+  "Low back revolving chair",
+  "Low back s type chair",
   "Net boom chair",
-  "Net matrix",
+  "Net matrix chair",
   "Amazon chair",
-  "Amazon hy",
-  "Black beauty",
-  "Samosa pattern",
+  "Amazon hy chair",
+  "Black beauty chair",
+  "Samosa pattern chair",
 ];
+
+function numberToWords(num: number): string {
+  if (num === 0) return "Zero Only";
+  const a = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+    "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+  ];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  const g = ["", "Thousand", "Lakh", "Crore"];
+
+  const helper = (n: number): string => {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + a[n % 10] : "");
+    return a[Math.floor(n / 100)] + " Hundred" + (n % 100 !== 0 ? " and " + helper(n % 100) : "");
+  };
+
+  let str = "";
+  let temp = Math.floor(num);
+
+  const parts: number[] = [];
+  if (temp > 0) {
+    parts.push(temp % 1000);
+    temp = Math.floor(temp / 1000);
+    while (temp > 0) {
+      parts.push(temp % 100);
+      temp = Math.floor(temp / 100);
+    }
+  }
+
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] !== 0) {
+      let partWord = helper(parts[i]);
+      if (i > 0) {
+        partWord += " " + g[i];
+      }
+      str = partWord + (str !== "" ? " " + str : "");
+    }
+  }
+
+  const paise = Math.round((num % 1) * 100);
+  let paiseStr = "";
+  if (paise > 0) {
+    paiseStr = " and " + helper(paise) + " paise";
+  }
+
+  return "INR " + str + paiseStr + " Only";
+}
 
 export const Route = createFileRoute("/invoices")({
   head: () => ({ meta: [{ title: "Invoice Generator — KSC SOFA ND CHAIR HOUSE" }] }),
@@ -44,6 +92,33 @@ function InvoicesPage() {
     updateInvoice,
     deleteInvoice,
   } = useAppState();
+
+  const getInvoiceBalanceDetails = (invoiceObj: Invoice) => {
+    const party = parties.find((p) => p.id === invoiceObj.partyId);
+    if (!party) {
+      return {
+        previousBalance: 0,
+        currentBalance: invoiceObj.total,
+      };
+    }
+
+    const ledgerBalance = party.entries.reduce((s, e) => s + (e.type === "debit" ? e.amount : -e.amount), 0);
+    const isSavedInvoice = invoices.some((inv) => inv.id === invoiceObj.id);
+    const isSynced = invoiceObj.syncToLedger && isSavedInvoice;
+
+    if (isSynced) {
+      const previous = ledgerBalance - invoiceObj.total;
+      return {
+        previousBalance: previous,
+        currentBalance: ledgerBalance,
+      };
+    } else {
+      return {
+        previousBalance: ledgerBalance,
+        currentBalance: ledgerBalance + invoiceObj.total,
+      };
+    }
+  };
 
   // Tab State
   const [activeTab, setActiveTab] = useState<string>("history");
@@ -84,7 +159,11 @@ function InvoicesPage() {
   }, [invoiceItems]);
 
   const discountVal = Number(discount) || 0;
-  const grandTotal = Math.max(0, subtotal - discountVal);
+  const cgstVal = 0;
+  const sgstVal = 0;
+  const totalBeforeRoundOff = subtotal - discountVal;
+  const grandTotal = Math.round(Math.max(0, totalBeforeRoundOff));
+  const roundOff = grandTotal - totalBeforeRoundOff;
 
   // Handle party (customer) selection change
   const handlePartyChange = (id: string) => {
@@ -98,7 +177,7 @@ function InvoicesPage() {
       if (party) {
         setCustomerName(party.name);
         setCustomerPhone(party.phone);
-        setCustomerAddress(""); // default blank as ledger might not track address
+        setCustomerAddress(party.address || "");
       }
     }
   };
@@ -242,9 +321,7 @@ function InvoicesPage() {
       const matchDate = !filterDate || inv.date === filterDate;
       return matchQuery && matchDate;
     });
-  }, [invoices, q, filterDate]);
-
-  // Open native browser print window
+  }, [invoices, q, filterDate]);  // Open native browser print window
   const handlePrint = (invoice: Invoice) => {
     // Clean up any existing print elements from previous runs
     const oldContainer = document.getElementById("print-section");
@@ -252,101 +329,286 @@ function InvoicesPage() {
     const oldStyle = document.getElementById("print-media-style");
     if (oldStyle) oldStyle.remove();
 
-    const itemsHtml = invoice.items
-      .map(
-        (item) => `
-        <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.name}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">${item.quantity}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">₹${item.price.toLocaleString("en-IN")}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600;">₹${(item.quantity * item.price).toLocaleString("en-IN")}</td>
-        </tr>
-      `
-      )
+    const subtotal = invoice.items.reduce((s, i) => s + i.quantity * i.price, 0);
+    const totalQty = invoice.items.reduce((s, i) => s + i.quantity, 0);
+    const discount = invoice.discount || 0;
+    const cgst = 0;
+    const sgst = 0;
+    const totalBeforeRoundOff = subtotal - discount;
+    const grandTotal = Math.round(totalBeforeRoundOff);
+    const roundOff = grandTotal - totalBeforeRoundOff;
+    const { previousBalance, currentBalance } = getInvoiceBalanceDetails(invoice);
+
+    const getItemUnit = (name: string) => {
+      const n = name.toLowerCase();
+      if (n.includes("mtr") || n.includes("fabric") || n.includes("lace") || n.includes("curtain")) return "";
+      return "PCS";
+    };
+
+    const formatQty = (qty: number, unit: string) => {
+      if (unit === "PCS") return qty.toString();
+      return qty.toFixed(2);
+    };
+
+    const hasMtr = invoice.items.some(item => getItemUnit(item.name) === "");
+    const formattedTotalQty = hasMtr ? totalQty.toFixed(2) : totalQty.toString();
+
+    const itemsRowsHtml = invoice.items
+      .map((item, idx) => {
+        const unit = getItemUnit(item.name);
+        return `
+          <tr style="font-size: 11px; vertical-align: top;">
+            <td style="border-right: 1px solid #000; padding: 4px; text-align: center;">${idx + 1}</td>
+            <td style="border-right: 1px solid #000; padding: 4px; font-weight: bold;">${item.name}</td>
+            <td style="border-right: 1px solid #000; padding: 4px; text-align: right; font-weight: bold;">${formatQty(item.quantity, unit)}${unit ? ' ' + unit : ''}</td>
+            <td style="border-right: 1px solid #000; padding: 4px; text-align: right;">${item.price.toFixed(2)}</td>
+            <td style="padding: 4px; text-align: right; font-weight: bold;">${(item.quantity * item.price).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+        `;
+      })
       .join("");
+
+    const formatRupees = (val: number) => {
+      return val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    const qrData = encodeURIComponent(`upi://pay?pa=08600200007446@BARB0NANDED.ifsc.npci&pn=KSC%20sofa%20and%20chair%20house&am=${grandTotal}&tn=Invoice%20${invoice.id}`);
 
     const printContainer = document.createElement("div");
     printContainer.id = "print-section";
 
     printContainer.innerHTML = `
-      <div class="invoice-box">
-        <div class="header">
-          <div>
-            <div class="company-logo">KSC SOFA ND CHAIR HOUSE</div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Manufacturer of Sofas and Office Chairs</div>
-            <div style="font-size: 12px; color: #64748b;">Maltekdi Railway Station Road Nanded | Mob: +91 9028887909</div>
-          </div>
-          <div class="invoice-info">
-            <h1 class="invoice-title">INVOICE</h1>
-            <div style="font-size: 15px; font-weight: 700; margin-top: 5px;">#${invoice.id}</div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 3px;">Date: ${invoice.date}</div>
-          </div>
-        </div>
+      <div style="font-family: sans-serif; font-size: 11px; color: #000; width: 100%; max-width: 800px; margin: 0 auto; border: 1px solid #000; box-sizing: border-box; background: white;">
         
-        <table class="details-table">
+        <!-- Header -->
+        <div style="text-align: center; font-weight: bold; border-bottom: 1px solid #000; padding: 6px 0; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">
+          Invoice
+        </div>
+
+        <!-- Supplier & Invoice details -->
+        <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000;">
           <tr>
-            <td>
-              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Billed To:</div>
-              <div style="font-weight: 700; font-size: 15px; color: #0f172a;">${invoice.customerName}</div>
-              ${invoice.customerPhone ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Phone: ${invoice.customerPhone}</div>` : ""}
-              ${invoice.customerAddress ? `<div style="font-size: 13px; color: #475569; margin-top: 2px;">Address: ${invoice.customerAddress}</div>` : ""}
+            <!-- Supplier Details -->
+            <td style="width: 50%; border-right: 1px solid #000; vertical-align: top; padding: 8px;">
+              <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <div style="flex-shrink: 0; text-align: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background-color: #fff; width: 65px; height: 65px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                  <img src="/assets/logo.png" alt="KSC Logo" style="display: block; max-width: 100%; max-height: 100%; object-fit: contain;" />
+                </div>
+                <div>
+                  <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">KSC SOFA AND CHAIR HOUSE</div>
+                  <div style="font-size: 9px; line-height: 1.3; margin-top: 2px;">
+                    MALTEKDI RAILWAY STATION ROAD,<br/>
+                    NEAR RAILWAY UNDER BRIDGE, MAHBOOB NAGAR ROAD,<br/>
+                    NANDED, MAHARASHTRA - 431601<br/>
+                    State Name: Maharashtra, Code: 27<br/>
+                    Contact: 9028887909
+                  </div>
+                </div>
+              </div>
             </td>
-            <td style="text-align: right;">
-              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 5px;">Payment Details:</div>
-              <div style="font-size: 13px; color: #475569;">Payment Method: Udhaar / Ledger Synced</div>
-              <div style="font-size: 13px; color: #475569; margin-top: 2px;">Status: Saved in Ledger</div>
+
+            <!-- Invoice Details -->
+            <td style="width: 50%; vertical-align: top; padding: 0;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr style="border-bottom: 1px solid #000;">
+                  <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                    <div style="font-size: 8px; color: #555;">Invoice No.</div>
+                    <div style="font-weight: bold; font-size: 10px;">${invoice.id}</div>
+                  </td>
+                  <td style="width: 50%; padding: 4px; vertical-align: top;">
+                    <div style="font-size: 8px; color: #555;">Dated</div>
+                    <div style="font-weight: bold; font-size: 10px;">${invoice.date}</div>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #000;">
+                  <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                    <div style="font-size: 8px; color: #555;">Delivery Note</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                  <td style="width: 50%; padding: 4px; vertical-align: top;">
+                    <div style="font-size: 8px; color: #555;">Mode/Terms of Payment</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #000;">
+                  <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                    <div style="font-size: 8px; color: #555;">Supplier's Ref.</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                  <td style="width: 50%; padding: 4px; vertical-align: top;">
+                    <div style="font-size: 8px; color: #555;">Other Reference(s)</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #000;">
+                  <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                    <div style="font-size: 8px; color: #555;">Buyer's Order No.</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                  <td style="width: 50%; padding: 4px; vertical-align: top;">
+                    <div style="font-size: 8px; color: #555;">Dated</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                </tr>
+                <tr style="border-bottom: 1px solid #000;">
+                  <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                    <div style="font-size: 8px; color: #555;">Dispatch Doc No.</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                  <td style="width: 50%; padding: 4px; vertical-align: top;">
+                    <div style="font-size: 8px; color: #555;">Delivery Note Date</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                    <div style="font-size: 8px; color: #555;">Dispatched through</div>
+                    <div style="font-weight: bold; font-size: 10px;"></div>
+                  </td>
+                  <td style="width: 50%; padding: 4px; vertical-align: top;">
+                    <div style="font-size: 8px; color: #555;">Destination</div>
+                    <div style="font-weight: bold; font-size: 10px;">${invoice.customerAddress ? "NANDED" : ""}</div>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
-        
-        <table class="items-table">
+
+        <!-- Buyer details -->
+        <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000;">
+          <tr>
+            <td style="width: 50%; border-right: 1px solid #000; vertical-align: top; padding: 6px; min-height: 80px;">
+              <div style="font-size: 8px; color: #555;">Buyer (Bill to)</div>
+              <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; marginTop: 2px;">
+                ${invoice.customerName || "Walk-in Customer"}
+              </div>
+              <div style="font-size: 9px; line-height: 1.3; margin-top: 2px;">
+                ${invoice.customerAddress || "Nanded"}
+                ${invoice.customerPhone ? `<br/>Mob: ${invoice.customerPhone}` : ""}
+              </div>
+              <div style="font-size: 9px; margin-top: 4px;">
+                State Name: Maharashtra, Code: 27
+              </div>
+            </td>
+            <td style="width: 50%; vertical-align: top; padding: 6px; display: flex; flex-direction: column; justify-content: flex-end;">
+              <div style="font-size: 9px; margin-bottom: 4px;">
+                Place of Supply: Maharashtra
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Items Table -->
+        <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000;">
           <thead>
-            <tr>
-              <th>Item Details</th>
-              <th style="text-align: right; width: 80px;">Qty</th>
-              <th style="text-align: right; width: 120px;">Unit Price</th>
-              <th style="text-align: right; width: 130px;">Amount</th>
+            <tr style="border-bottom: 1px solid #000; font-size: 8px; text-transform: uppercase; font-weight: bold; text-align: center; background-color: #f9f9f9;">
+              <th style="width: 5%; border-right: 1px solid #000; padding: 4px;">Sl No.</th>
+              <th style="width: 63%; border-right: 1px solid #000; padding: 4px; text-align: left;">Description of Goods</th>
+              <th style="width: 12%; border-right: 1px solid #000; padding: 4px; text-align: right;">Quantity</th>
+              <th style="width: 10%; border-right: 1px solid #000; padding: 4px; text-align: right;">Rate</th>
+              <th style="width: 10%; padding: 4px; text-align: right;">Amount</th>
             </tr>
           </thead>
           <tbody>
-            ${itemsHtml}
+            ${itemsRowsHtml}
+            <tr style="font-size: 10px; vertical-align: top;">
+              <td style="border-right: 1px solid #000; padding: 4px; height: 110px;"></td>
+              <td style="border-right: 1px solid #000; padding: 4px; text-align: right; font-weight: bold; font-style: italic;">
+                <div style="display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-height: 90px; padding-bottom: 4px; line-height: 1.6;">
+                  ${discount > 0 ? "<div>LESS: DISCOUNT</div>" : ""}
+                  <div>ROUND OFF</div>
+                </div>
+              </td>
+              <td style="border-right: 1px solid #000; padding: 4px;"></td>
+              <td style="border-right: 1px solid #000; padding: 4px;"></td>
+              <td style="padding: 4px; text-align: right; font-weight: bold;">
+                <div style="display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-height: 90px; padding-bottom: 4px; line-height: 1.6;">
+                  ${discount > 0 ? `<div style="color: #ef4444;">(-)${formatRupees(discount)}</div>` : ""}
+                  <div>${roundOff >= 0 ? "" : "(-)"}${Math.abs(roundOff).toFixed(2)}</div>
+                </div>
+              </td>
+            </tr>
+            <tr style="border-top: 1px solid #000; font-size: 10px; font-weight: bold; backgroundColor: #f9f9f9;">
+              <td style="border-right: 1px solid #000; padding: 4px;"></td>
+              <td style="border-right: 1px solid #000; padding: 4px; text-align: right;">Total</td>
+              <td style="border-right: 1px solid #000; padding: 4px; text-align: right;">${formattedTotalQty}</td>
+              <td style="border-right: 1px solid #000; padding: 4px;"></td>
+              <td style="padding: 4px; text-align: right; font-size: 11px; font-weight: 900;">₹ ${formatRupees(grandTotal)}</td>
+            </tr>
           </tbody>
         </table>
-        
-        <div class="totals-box">
-          <div class="totals-row">
-            <span>Subtotal:</span>
-            <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
-          </div>
-          ${invoice.discount > 0
-        ? `
-          <div class="totals-row" style="color: #ef4444;">
-            <span>Discount:</span>
-            <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
-          </div>
-          `
-        : ""
-      }
-          <div class="totals-row grand">
-            <span>Grand Total:</span>
-            <span>₹${invoice.total.toLocaleString("en-IN")}</span>
-          </div>
+
+        <!-- Words and Balance details -->
+        <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000; font-size: 10px;">
+          <tr>
+            <td style="padding: 6px; vertical-align: top;">
+              <div style="color: #555; fontSize: 8px;">Amount Chargeable (in words)</div>
+              <div style="font-weight: bold; margin-top: 2px; fontSize: 10px; text-transform: capitalize;">
+                ${numberToWords(grandTotal)}
+              </div>
+            </td>
+            <td style="width: 35%; border-left: 1px solid #000; padding: 6px; vertical-align: top; text-align: right;">
+            </td>
+          </tr>
+        </table>
+
+        <!-- Bank Details & Balance breakdown -->
+        <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000; font-size: 10px;">
+          <tr>
+            <td style="width: 55%; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
+              <div style="display: flex; gap: 8px; align-items: flex-start;">
+                <div>
+                  <div style="font-weight: bold; border-bottom: 1px dashed #000; padding-bottom: 1px; margin-bottom: 3px;">Company's Bank Details</div>
+                  <div>Bank Name: &nbsp; &nbsp; &nbsp; &nbsp; <strong style="font-weight: bold;">Bank of Baroda</strong></div>
+                  <div>A/c Name: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <strong style="font-weight: bold;">KSC sofa and chair house</strong></div>
+                  <div>A/c No.: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<strong style="font-weight: bold;">08600200007446</strong></div>
+                  <div>Branch & IFS Code: <strong style="font-weight: bold;">NANDED & BARB0NANDED</strong></div>
+                </div>
+              </div>
+            </td>
+            <td style="width: 45%; padding: 6px; vertical-align: top;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                <tr>
+                  <td style="padding: 1px 0; color: #555;">Party Previous Balance</td>
+                  <td style="text-align: right; padding: 1px 0;">:</td>
+                  <td style="text-align: right; padding: 1px 0; font-weight: bold;">${formatRupees(previousBalance)}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 1px 0; color: #555;">Current Bill</td>
+                  <td style="text-align: right; padding: 1px 0;">:</td>
+                  <td style="text-align: right; padding: 1px 0; font-weight: bold;">${formatRupees(grandTotal)}</td>
+                </tr>
+                <tr style="border-top: 1px solid #000;">
+                  <td style="padding: 3px 0; font-weight: bold;">Total Amount</td>
+                  <td style="text-align: right; padding: 3px 0;">:</td>
+                  <td style="text-align: right; padding: 3px 0; font-weight: 900; font-size: 11px;">${formatRupees(currentBalance)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Signatures -->
+        <table style="width: 100%; border-collapse: collapse; border-top: 1px solid #000; font-size: 10px; height: 65px;">
+          <tr>
+            <td style="width: 50%; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
+              <div style="color: #555; fontSize: 8px;">Customer's Seal and Signature</div>
+            </td>
+            <td style="width: 50%; padding: 6px; vertical-align: top; text-align: right;">
+              <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: 55px;">
+                <div style="font-style: italic; font-size: 9px;">for KSC SOFA AND CHAIR HOUSE</div>
+                <div style="font-weight: bold; fontSize: 10px; padding-top: 25px;">Authorised Signatory</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Computer generated notice -->
+        <div style="border-top: 1px solid #000; text-align: center; padding: 3px 0; font-size: 8px; color: #555; background-color: #f9f9f9;">
+          This is a Computer Generated Invoice
         </div>
-        
-        ${invoice.notes
-        ? `
-        <div class="notes-section">
-          <div style="font-weight: 700; margin-bottom: 4px; color: #475569; font-size: 12px;">Notes / Special Terms:</div>
-          <div>${invoice.notes}</div>
-        </div>
-        `
-        : ""
-      }
-        
-        <div class="footer">
-          <p>Thank you for choosing KSC SOFA ND CHAIR HOUSE!</p>
-          <p style="font-size: 9px; color: #cbd5e1; margin-top: 20px;">This is a system generated document.</p>
-        </div>
+
       </div>
     `;
 
@@ -365,28 +627,10 @@ function InvoicesPage() {
         left: 0;
         top: 0;
         width: 100%;
-        font-family: system-ui, -apple-system, sans-serif;
-        color: #1e293b;
-        padding: 40px;
-        margin: 0;
-        line-height: 1.5;
         background: white;
         z-index: 999999;
+        padding: 0;
       }
-      body.printing-active #print-section .invoice-box { max-width: 800px; margin: auto; }
-      body.printing-active #print-section .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-      body.printing-active #print-section .company-logo { font-size: 24px; font-weight: bold; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; }
-      body.printing-active #print-section .invoice-title { font-size: 28px; font-weight: 800; text-align: right; color: #0f172a; margin: 0; line-height: 1.1; }
-      body.printing-active #print-section .details-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-      body.printing-active #print-section .details-table td { width: 50%; vertical-align: top; }
-      body.printing-active #print-section .invoice-info { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
-      body.printing-active #print-section .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-      body.printing-active #print-section .items-table th { background: #f8fafc; border-bottom: 2px solid #e2e8f0; text-align: left; padding: 10px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569; }
-      body.printing-active #print-section .totals-box { width: 40%; margin-left: 60%; margin-bottom: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-      body.printing-active #print-section .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-      body.printing-active #print-section .totals-row.grand { border-top: 2px solid #0f172a; font-size: 18px; font-weight: 700; color: #0f172a; padding-top: 10px; margin-top: 6px; }
-      body.printing-active #print-section .notes-section { font-size: 12px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 20px; margin-top: 20px; }
-      body.printing-active #print-section .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
     `;
 
     document.head.appendChild(styleEl);
@@ -422,142 +666,241 @@ function InvoicesPage() {
       // @ts-ignore
       const html2pdf = (await import("html2pdf.js")).default;
 
-      // Detect if user is on mobile
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-
       // 1. Build the HTML content
+      const subtotal = invoice.items.reduce((s, i) => s + i.quantity * i.price, 0);
+      const totalQty = invoice.items.reduce((s, i) => s + i.quantity, 0);
+      const discount = invoice.discount || 0;
+      const cgst = 0;
+      const sgst = 0;
+      const totalBeforeRoundOff = subtotal - discount;
+      const grandTotal = Math.round(totalBeforeRoundOff);
+      const roundOff = grandTotal - totalBeforeRoundOff;
+      const { previousBalance, currentBalance } = getInvoiceBalanceDetails(invoice);
+
+      const getItemUnit = (name: string) => {
+        const n = name.toLowerCase();
+        if (n.includes("mtr") || n.includes("fabric") || n.includes("lace") || n.includes("curtain")) return "";
+        return "PCS";
+      };
+
+      const formatQty = (qty: number, unit: string) => {
+        if (unit === "PCS") return qty.toString();
+        return qty.toFixed(2);
+      };
+
+      const hasMtr = invoice.items.some(item => getItemUnit(item.name) === "");
+      const formattedTotalQty = hasMtr ? totalQty.toFixed(2) : totalQty.toString();
+
       const itemsHtml = invoice.items
-        .map(
-          (item, idx) => `
-          <tr style="background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 13px; color: #334155;">${item.name}</td>
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; color: #334155;">${item.quantity}</td>
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; color: #334155;">₹${item.price.toLocaleString("en-IN")}</td>
-            <td style="padding: 12px 14px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px; color: #0f172a; font-weight: 600;">₹${(item.quantity * item.price).toLocaleString("en-IN")}</td>
-          </tr>
-        `
-        )
+        .map((item, idx) => {
+          const unit = getItemUnit(item.name);
+          return `
+            <tr style="font-size: 11px; vertical-align: top;">
+              <td style="border-right: 1px solid #000; padding: 4px; text-align: center; border-bottom: 1px solid #000;">${idx + 1}</td>
+              <td style="border-right: 1px solid #000; padding: 4px; font-weight: bold; border-bottom: 1px solid #000;">${item.name}</td>
+              <td style="border-right: 1px solid #000; padding: 4px; text-align: right; font-weight: bold; border-bottom: 1px solid #000;">${formatQty(item.quantity, unit)}${unit ? ' ' + unit : ''}</td>
+              <td style="border-right: 1px solid #000; padding: 4px; text-align: right; border-bottom: 1px solid #000;">${item.price.toFixed(2)}</td>
+              <td style="padding: 4px; text-align: right; font-weight: bold; border-bottom: 1px solid #000;">${(item.quantity * item.price).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        })
         .join("");
 
+      const formatRupees = (val: number) => {
+        return val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      };
+
+      const qrData = encodeURIComponent(`upi://pay?pa=08600200007446@BARB0NANDED.ifsc.npci&pn=KSC%20sofa%20and%20chair%20house&am=${grandTotal}&tn=Invoice%20${invoice.id}`);
+
       const htmlContent = `
-        <div style="width: 800px; margin: auto; background: #ffffff; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; color: #1e293b; line-height: 1.5; border-top: 8px solid #059669;">
-          <div style="padding: 45px;">
-            
-            <!-- Header Grid -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border-bottom: 2px solid #f1f5f9;">
+        <div style="width: 800px; margin: auto; background: #ffffff; font-family: sans-serif; color: #000; line-height: 1.5; padding: 20px;">
+          <div style="border: 1px solid #000; box-sizing: border-box;">
+            <div style="text-align: center; font-weight: bold; border-bottom: 1px solid #000; padding: 6px 0; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">Invoice</div>
+            <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000;">
               <tr>
-                <td style="vertical-align: top; padding-bottom: 30px; text-align: left;">
-                  <div style="font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; line-height: 1.2;">KSC SOFA ND CHAIR HOUSE</div>
-                  <div style="font-size: 11px; color: #059669; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Manufacturer of Sofas and Office Chairs</div>
-                  <div style="font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.4;">
-                    Maltekdi Railway Station Road Nanded<br>
-                    Mob: +91 9028887909 
+                <td style="width: 50%; border-right: 1px solid #000; vertical-align: top; padding: 8px;">
+                  <div style="display: flex; gap: 10px; align-items: flex-start;">
+                    <div style="flex-shrink: 0; text-align: center; border: 1px solid #000; padding: 4px; border-radius: 4px; background-color: #fff; width: 65px; height: 65px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                      <img src="/assets/logo.png" alt="KSC Logo" style="display: block; max-width: 100%; max-height: 100%; object-fit: contain;" />
+                    </div>
+                    <div>
+                      <div style="font-weight: bold; font-size: 13px; text-transform: uppercase;">KSC SOFA AND CHAIR HOUSE</div>
+                      <div style="font-size: 9px; line-height: 1.3; margin-top: 2px;">
+                        MALTEKDI RAILWAY STATION ROAD,<br/>
+                        NEAR RAILWAY UNDER BRIDGE, MAHBOOB NAGAR ROAD,<br/>
+                        NANDED, MAHARASHTRA - 431601<br/>
+                        State Name: Maharashtra, Code: 27<br/>
+                        Contact: 9028887909
+                      </div>
+                    </div>
                   </div>
                 </td>
-                <td style="vertical-align: top; padding-bottom: 30px; text-align: right;">
-                  <h1 style="font-size: 32px; font-weight: 900; color: #0f172a; letter-spacing: -1px; margin: 0; line-height: 1;">INVOICE</h1>
-                  <div style="margin-top: 15px; font-size: 13px; color: #475569; line-height: 1.4;">
-                    <div><span style="color: #64748b;">Invoice No:</span> <strong style="color: #0f172a;">#${invoice.id}</strong></div>
-                    <div style="margin-top: 4px;"><span style="color: #64748b;">Date:</span> <strong style="color: #0f172a;">${invoice.date}</strong></div>
-                  </div>
+                <td style="width: 50%; vertical-align: top; padding: 0;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #000;">
+                      <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                        <div style="font-size: 8px; color: #555;">Invoice No.</div>
+                        <div style="font-weight: bold; font-size: 10px;">${invoice.id}</div>
+                      </td>
+                      <td style="width: 50%; padding: 4px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #555;">Dated</div>
+                        <div style="font-weight: bold; font-size: 10px;">${invoice.date}</div>
+                      </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #000;">
+                      <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                        <div style="font-size: 8px; color: #555;">Delivery Note</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                      <td style="width: 50%; padding: 4px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #555;">Mode/Terms of Payment</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #000;">
+                      <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                        <div style="font-size: 8px; color: #555;">Supplier's Ref.</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                      <td style="width: 50%; padding: 4px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #555;">Other Reference(s)</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #000;">
+                      <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                        <div style="font-size: 8px; color: #555;">Buyer's Order No.</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                      <td style="width: 50%; padding: 4px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #555;">Dated</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #000;">
+                      <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                        <div style="font-size: 8px; color: #555;">Dispatch Doc No.</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                      <td style="width: 50%; padding: 4px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #555;">Delivery Note Date</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="width: 50%; border-right: 1px solid #000; padding: 4px; vertical-align: top; height: 35px;">
+                        <div style="font-size: 8px; color: #555;">Dispatched through</div>
+                        <div style="font-weight: bold; font-size: 10px;"></div>
+                      </td>
+                      <td style="width: 50%; padding: 4px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #555;">Destination</div>
+                        <div style="font-weight: bold; font-size: 10px;">${invoice.customerAddress ? "NANDED" : ""}</div>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
             </table>
-            
-            <!-- Details Grid -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+            <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000;">
               <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 10px;">
-                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; min-height: 120px;">
-                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 1.5px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">Billed To</div>
-                    <div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 6px;">${invoice.customerName}</div>
-                    ${invoice.customerPhone ? `<div style="font-size: 13px; color: #475569; margin-bottom: 4px;"><strong>Phone:</strong> ${invoice.customerPhone}</div>` : ""}
-                    ${invoice.customerAddress ? `<div style="font-size: 13px; color: #475569;"><strong>Address:</strong> ${invoice.customerAddress}</div>` : ""}
+                <td style="width: 50%; border-right: 1px solid #000; vertical-align: top; padding: 6px; min-height: 80px;">
+                  <div style="font-size: 8px; color: #555;">Buyer (Bill to)</div>
+                  <div style="font-weight: bold; font-size: 11px; text-transform: uppercase; marginTop: 2px;">
+                    ${invoice.customerName || "Walk-in Customer"}
                   </div>
+                  <div style="font-size: 9px; line-height: 1.3; margin-top: 2px;">
+                    ${invoice.customerAddress || "Nanded"}
+                    ${invoice.customerPhone ? `<br/>Mob: ${invoice.customerPhone}` : ""}
+                  </div>
+                  <div style="font-size: 9px; margin-top: 4px;">State Name: Maharashtra, Code: 27</div>
                 </td>
-                <td style="width: 50%; vertical-align: top; padding-left: 10px;">
-                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; min-height: 120px;">
-                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 1.5px; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">Payment Details</div>
-                    <div style="font-size: 13px; color: #475569; margin-bottom: 4px;"><strong>Payment Method:</strong> Udhaar / Ledger Synced</div>
-                    <div style="font-size: 13px; color: #475569;"><strong>Payment Status:</strong> Saved in Ledger</div>
-                  </div>
+                <td style="width: 50%; vertical-align: top; padding: 6px; display: flex; flex-direction: column; justify-content: flex-end;">
+                  <div style="font-size: 9px; margin-bottom: 4px;">Place of Supply: Maharashtra</div>
                 </td>
               </tr>
             </table>
-            
-            <!-- Items Table -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 35px;">
+            <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000;">
               <thead>
-                <tr style="background: #0f172a; color: #ffffff;">
-                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: left; border-top-left-radius: 6px; border-bottom-left-radius: 6px;">Item Details</th>
-                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 80px;">Qty</th>
-                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 120px;">Unit Price</th>
-                  <th style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 14px; text-align: right; width: 130px; border-top-right-radius: 6px; border-bottom-right-radius: 6px;">Amount</th>
+                <tr style="border-bottom: 1px solid #000; font-size: 8px; text-transform: uppercase; font-weight: bold; text-align: center; background-color: #f9f9f9;">
+                  <th style="width: 5%; border-right: 1px solid #000; padding: 4px;">Sl No.</th>
+                  <th style="width: 63%; border-right: 1px solid #000; padding: 4px; text-align: left;">Description of Goods</th>
+                  <th style="width: 12%; border-right: 1px solid #000; padding: 4px; text-align: right;">Quantity</th>
+                  <th style="width: 10%; border-right: 1px solid #000; padding: 4px; text-align: right;">Rate</th>
+                  <th style="width: 10%; padding: 4px; text-align: right;">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 ${itemsHtml}
+                <tr style="font-size: 10px; vertical-align: top;">
+                  <td style="border-right: 1px solid #000; padding: 4px; height: 110px;"></td>
+                  <td style="border-right: 1px solid #000; padding: 4px; text-align: right; font-weight: bold; font-style: italic;">
+                    <div style="display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-height: 90px; padding-bottom: 4px; line-height: 1.6;">
+                      ${discount > 0 ? "<div>LESS: DISCOUNT</div>" : ""}
+                      <div>ROUND OFF</div>
+                    </div>
+                  </td>
+                  <td style="border-right: 1px solid #000; padding: 4px;"></td>
+                  <td style="border-right: 1px solid #000; padding: 4px;"></td>
+                  <td style="padding: 4px; text-align: right; font-weight: bold;">
+                    <div style="display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-height: 90px; padding-bottom: 4px; line-height: 1.6;">
+                      ${discount > 0 ? `<div style="color: #ef4444;">(-)${formatRupees(discount)}</div>` : ""}
+                      <div>${roundOff >= 0 ? "" : "(-)"}${Math.abs(roundOff).toFixed(2)}</div>
+                    </div>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid #000; font-size: 10px; font-weight: bold; backgroundColor: #f9f9f9;">
+                  <td style="border-right: 1px solid #000; padding: 4px;"></td>
+                  <td style="border-right: 1px solid #000; padding: 4px; text-align: right;">Total</td>
+                  <td style="border-right: 1px solid #000; padding: 4px; text-align: right;">${formattedTotalQty}</td>
+                  <td style="border-right: 1px solid #000; padding: 4px;"></td>
+                  <td style="padding: 4px; text-align: right; font-size: 11px; font-weight: 900;">₹ ${formatRupees(grandTotal)}</td>
+                </tr>
               </tbody>
             </table>
-            
-            <!-- Totals Grid -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 45px;">
+            <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000; font-size: 10px;">
               <tr>
-                <td style="width: 55%; vertical-align: top; padding-right: 20px; text-align: left;">
-                  ${invoice.notes
-          ? `
-                    <div style="border-left: 3px solid #059669; background: #f0fdf4; padding: 15px 20px; border-radius: 4px; font-size: 12px; color: #1e293b; text-align: left;">
-                      <div style="font-weight: 700; color: #047857; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Notes & Special Terms</div>
-                      <div>${invoice.notes}</div>
-                    </div>
-                    `
-          : ""
-        }
+                <td style="padding: 6px; vertical-align: top;">
+                  <div style="color: #555; fontSize: 8px;">Amount Chargeable (in words)</div>
+                  <div style="font-weight: bold; margin-top: 2px; fontSize: 10px; text-transform: capitalize;">${numberToWords(grandTotal)}</div>
                 </td>
-                <td style="width: 45%; vertical-align: top;">
-                  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px;">
-                    <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #475569;">
-                      <span>Subtotal:</span>
-                      <span>₹${invoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}</span>
+                <td style="width: 35%; border-left: 1px solid #000; padding: 6px; vertical-align: top; text-align: right;">
+                </td>
+              </tr>
+            </table>
+            <table style="width: 100%; border-collapse: collapse; border-bottom: 1px solid #000; font-size: 10px;">
+              <tr>
+                <td style="width: 55%; border-right: 1px solid #000; padding: 6px; vertical-align: top;">
+                  <div style="display: flex; gap: 8px; align-items: flex-start;">
+                    <div>
+                      <div style="font-weight: bold; border-bottom: 1px dashed #000; padding-bottom: 1px; margin-bottom: 3px;">Company's Bank Details</div>
+                      <div>Bank Name: &nbsp; &nbsp; &nbsp; &nbsp; <strong style="font-weight: bold;">Bank of Baroda</strong></div>
+                      <div>A/c Name: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <strong style="font-weight: bold;">KSC sofa and chair house</strong></div>
+                      <div>A/c No.: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<strong style="font-weight: bold;">08600200007446</strong></div>
+                      <div>Branch & IFS Code: <strong style="font-weight: bold;">NANDED & BARB0NANDED</strong></div>
                     </div>
-                    ${invoice.discount > 0
-          ? `
-                      <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; color: #ef4444;">
-                        <span>Discount:</span>
-                        <span>- ₹${invoice.discount.toLocaleString("en-IN")}</span>
-                      </div>
-                      `
-          : ""
-        }
-                    <div style="display: flex; justify-content: space-between; border-top: 1.5px solid #0f172a; padding-top: 10px; margin-top: 8px; font-size: 17px; font-weight: 800; color: #0f172a;">
-                      <span>Grand Total:</span>
-                      <span>₹${invoice.total.toLocaleString("en-IN")}</span>
-                    </div>
+                  </div>
+                </td>
+                <td style="width: 45%; padding: 6px; vertical-align: top;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                    <tr><td style="padding: 1px 0; color: #555;">Party Previous Balance</td><td style="text-align: right; padding: 1px 0;">:</td><td style="text-align: right; padding: 1px 0; font-weight: bold;">${formatRupees(previousBalance)}</td></tr>
+                    <tr><td style="padding: 1px 0; color: #555;">Current Bill</td><td style="text-align: right; padding: 1px 0;">:</td><td style="text-align: right; padding: 1px 0; font-weight: bold;">${formatRupees(grandTotal)}</td></tr>
+                    <tr style="border-top: 1px solid #000;"><td style="padding: 3px 0; font-weight: bold;">Total Amount</td><td style="text-align: right; padding: 3px 0;">:</td><td style="text-align: right; padding: 3px 0; font-weight: 900; font-size: 11px;">${formatRupees(currentBalance)}</td></tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+            <table style="width: 100%; border-collapse: collapse; border-top: 1px solid #000; font-size: 10px; height: 65px;">
+              <tr>
+                <td style="width: 50%; border-right: 1px solid #000; padding: 6px; vertical-align: top;"><div style="color: #555; fontSize: 8px;">Customer's Seal and Signature</div></td>
+                <td style="width: 50%; padding: 6px; vertical-align: top; text-align: right;">
+                  <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: 55px;">
+                    <div style="font-style: italic; font-size: 9px;">for KSC SOFA AND CHAIR HOUSE</div>
+                    <div style="font-weight: bold; fontSize: 10px; padding-top: 25px;">Authorised Signatory</div>
                   </div>
                 </td>
               </tr>
             </table>
-            
-            <!-- Signatures Section -->
-            <table style="width: 100%; border-collapse: collapse; margin-top: 60px; border-top: 1px solid #f1f5f9; padding-top: 40px;">
-              <tr>
-                <td style="width: 50%; text-align: center; vertical-align: bottom;">
-                  <div style="width: 200px; border-bottom: 1.5px solid #94a3b8; margin: 0 auto 10px auto; height: 45px;"></div>
-                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Customer Signature</div>
-                </td>
-                <td style="width: 50%; text-align: center; vertical-align: bottom;">
-                  <div style="width: 200px; border-bottom: 1.5px solid #94a3b8; margin: 0 auto 10px auto; height: 45px;"></div>
-                  <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Authorized Signatory</div>
-                </td>
-              </tr>
-            </table>
-            
-            <!-- Footer -->
-            <div style="text-align: center; margin-top: 60px; border-top: 1.5px dashed #e2e8f0; padding-top: 25px; font-size: 11px; color: #94a3b8;">
-              <div style="font-weight: 700; color: #0f172a; font-size: 12px; margin-bottom: 4px;">Thank you for choosing KSC SOFA ND CHAIR HOUSE!</div>
-              <div>This is a computer generated document and does not require a physical signature unless signed above.</div>
-            </div>
-            
+            <div style="border-top: 1px solid #000; text-align: center; padding: 3px 0; font-size: 8px; color: #555; background-color: #f9f9f9;">This is a Computer Generated Invoice</div>
           </div>
         </div>
       `;
@@ -565,7 +908,7 @@ function InvoicesPage() {
       const opt = {
         margin: 10,
         filename: `Invoice-${invoice.id}.pdf`,
-        image: { type: 'jpeg', quality: 0.90 },
+        image: { type: 'jpeg' as const, quality: 0.90 },
         html2canvas: {
           scale: 2,
           useCORS: true,
@@ -575,16 +918,11 @@ function InvoicesPage() {
           scrollX: 0,
           scrollY: 0
         },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
       };
 
-      // Generate the PDF blob
-      // @ts-ignore
       const pdfBlob = await html2pdf().from(htmlContent).set(opt).outputPdf('blob');
-
       const fileName = `Invoice-${invoice.id}.pdf`;
-
-      // Check if navigator.share supports file sharing (primarily mobile viewports)
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
 
       let sharedLocally = false;
@@ -593,19 +931,17 @@ function InvoicesPage() {
           await navigator.share({
             files: [pdfFile],
             title: fileName,
-            text: `Invoice #${invoice.id} from KSC SOFA ND CHAIR HOUSE`
+            text: `Invoice #${invoice.id} from KSC SOFA AND CHAIR HOUSE`
           });
           sharedLocally = true;
           toast.success("Invoice shared successfully!", { id: toastId });
           return;
         } catch (shareErr) {
-          console.log("User cancelled share or share failed, falling back to download/link.", shareErr);
+          console.log("Share failed, falling back.", shareErr);
         }
       }
 
-      // Fallback for PC/Laptop (or if share failed)
       if (!sharedLocally) {
-        // 1. Download the PDF file locally on their computer
         const fileURL = window.URL.createObjectURL(pdfBlob);
         const fileLink = document.createElement('a');
         fileLink.href = fileURL;
@@ -614,7 +950,6 @@ function InvoicesPage() {
         fileLink.click();
         fileLink.remove();
 
-        // 2. Convert Blob to base64 and upload to server to get shareable absoluteUrl (if they still want to copy the link)
         const blobToBase64 = (blob: Blob): Promise<string> => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -627,84 +962,55 @@ function InvoicesPage() {
 
         toast.loading("Uploading PDF to server...", { id: toastId });
 
-        const uploadResult = await apiService.uploadInvoicePdf(
-          fileName,
-          base64Data,
-          invoice.customerPhone,
-          "",
-          false // sendDirectWhatsApp = false
-        );
-
-        // 3. Open WhatsApp Web directly to the customer's chat
+        const uploadResult = await apiService.uploadInvoicePdf(fileName, base64Data, invoice.customerPhone, "", false);
         let cleanedPhone = (invoice.customerPhone || "").replace(/[^0-9]/g, "");
-        if (cleanedPhone.length === 10) {
-          cleanedPhone = "91" + cleanedPhone; // default to India
-        }
+        if (cleanedPhone.length === 10) cleanedPhone = "91" + cleanedPhone;
 
-        const shareText = `Dear ${invoice.customerName}, thank you for choosing KSC SOFA ND CHAIR HOUSE. Here is your invoice: ${uploadResult.absoluteUrl}`;
+        const shareText = `Dear ${invoice.customerName}, thank you for choosing KSC SOFA AND CHAIR HOUSE. Here is your invoice: ${uploadResult.absoluteUrl}`;
         const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanedPhone}&text=${encodeURIComponent(shareText)}`;
-
-        // Open WhatsApp sharing link in a new tab
         window.open(whatsappUrl, "_blank");
 
-        toast.success("PDF downloaded! Drag the file from the download bar into the WhatsApp window to send.", {
-          id: toastId,
-          duration: 7000
-        });
+        toast.success("PDF downloaded!", { id: toastId, duration: 7000 });
       }
     } catch (err: any) {
-      console.error("PDF generation/sharing error:", err);
-      toast.error(err.message || "Failed to send PDF via WhatsApp.", { id: toastId });
+      console.error(err);
+      toast.error(err.message || "Failed to send PDF.", { id: toastId });
     }
   };
 
-  // Poll WhatsApp status when QR Modal is open
   useEffect(() => {
     if (!qrModalOpen) return;
-
     let isSubscribed = true;
     const checkStatus = async () => {
       try {
         const status = await apiService.getWhatsAppStatus();
         if (!isSubscribed) return;
         setQrCodeUrl(status.qr);
-
         if (status.connected) {
           setQrModalOpen(false);
-          toast.success("WhatsApp connected successfully! Sending invoice...");
+          toast.success("WhatsApp connected!");
           if (pendingInvoice) {
             handleShareWhatsApp(pendingInvoice);
             setPendingInvoice(null);
           }
         }
-      } catch (err) {
-        console.error("Error checking WhatsApp status:", err);
-      }
+      } catch (err) { console.error(err); }
     };
-
-    // Initial check
     checkStatus();
-
     const intervalId = setInterval(checkStatus, 3000);
-
-    return () => {
-      isSubscribed = false;
-      clearInterval(intervalId);
-    };
+    return () => { isSubscribed = false; clearInterval(intervalId); };
   }, [qrModalOpen, pendingInvoice]);
 
-  // Mailto link trigger
   const handleShareEmail = (invoice: Invoice) => {
-    const subject = encodeURIComponent(`Invoice ${invoice.id} from KSC SOFA ND CHAIR HOUSE`);
+    const subject = encodeURIComponent(`Invoice ${invoice.id} from KSC SOFA AND CHAIR HOUSE`);
     const body = encodeURIComponent(
       `Dear ${invoice.customerName},\n\n` +
-      `Thank you for shopping at KSC SOFA ND CHAIR HOUSE. Here is your invoice summary:\n\n` +
+      `Thank you for shopping at KSC SOFA AND CHAIR HOUSE. Here is your invoice summary:\n\n` +
       `Invoice #: ${invoice.id}\n` +
       `Date: ${invoice.date}\n` +
       `Grand Total: ₹${invoice.total.toLocaleString("en-IN")}\n\n` +
       `Notes: ${invoice.notes || "None"}\n\n` +
-      `If you have any questions, feel free to reply to this email.\n\n` +
-      `Best regards,\nKSC SOFA ND CHAIR HOUSE`
+      `Best regards,\nKSC SOFA AND CHAIR HOUSE`
     );
     window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
   };
@@ -1057,6 +1363,8 @@ function InvoicesPage() {
                     <span className="font-semibold text-slate-800">{formatINR(subtotal)}</span>
                   </div>
 
+
+
                   <div className="space-y-1.5">
                     <Label htmlFor="disc-input" className="text-xs text-muted-foreground">Apply Cash Discount (₹)</Label>
                     <Input
@@ -1068,6 +1376,11 @@ function InvoicesPage() {
                       min="0"
                       className="bg-white"
                     />
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Round Off:</span>
+                    <span className="font-semibold text-slate-800">{roundOff >= 0 ? "+" : ""}{roundOff.toFixed(2)}</span>
                   </div>
 
                   <div className="border-t pt-3.5 flex items-center justify-between">
@@ -1164,143 +1477,293 @@ function InvoicesPage() {
               </DialogHeader>
 
               {/* Styled Invoice Layout (A4 format preview) */}
-              <div className="p-8 bg-white text-slate-800 space-y-6 md:p-12 font-sans">
-                {/* Invoice Letterhead */}
-                <div className="flex flex-col sm:flex-row justify-between gap-6 border-b pb-6 border-slate-100">
-                  <div>
-                    <span className="font-serif text-2xl font-extrabold tracking-tight text-slate-900">
-                      KSC SOFA ND CHAIR HOUSE
-                    </span>
-                    <p className="text-[11px] uppercase tracking-widest text-slate-500 font-semibold mt-1">
-                      Manufacturer of Sofas and Office Chairs
-                    </p>
-                    <p className="text-xs text-slate-400 mt-2">
-                      Maltekdi Railway Station Road Nanded<br />
-                      Mob: +91 9028887909
-                    </p>
-                  </div>
-                  <div className="sm:text-right">
-                    <span className="text-3xl font-black tracking-tight text-indigo-900">
-                      INVOICE
-                    </span>
-                    <p className="font-mono text-sm font-bold text-slate-800 mt-1">
-                      #{previewInvoice.id}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-2">
-                      Date: {previewInvoice.date}
-                    </p>
-                  </div>
-                </div>
+              <div className="p-4 bg-white text-black font-sans leading-normal text-xs" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
 
-                {/* Customer Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6 border-slate-100">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                      Billed To:
-                    </span>
-                    <p className="text-base font-extrabold text-slate-900">
-                      {previewInvoice.customerName}
-                    </p>
-                    {previewInvoice.customerPhone && (
-                      <p className="text-xs text-slate-600 mt-1">
-                        Mob: {previewInvoice.customerPhone}
-                      </p>
-                    )}
-                    {previewInvoice.customerAddress && (
-                      <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-sm">
-                        {previewInvoice.customerAddress}
-                      </p>
-                    )}
-                  </div>
-                  <div className="md:text-right">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                      Payment Context:
-                    </span>
-                    <p className="text-xs text-slate-600">
-                      Payment Account: Synced to Khatabook
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Ledger Sync: {previewInvoice.syncToLedger ? "Enabled (Debit Recorded)" : "Disabled"}
-                    </p>
-                  </div>
-                </div>
+                {/* Outer Invoice Box */}
+                <div style={{ border: '1px solid #000', boxSizing: 'border-box' }}>
 
-                {/* Items Table */}
-                <div className="rounded-md border border-slate-100 overflow-hidden">
-                  <table className="w-full border-collapse text-left text-xs sm:text-sm">
+                  {/*Invoice Header */}
+                  <div style={{ textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid #000', padding: '6px 0', textTransform: 'uppercase', fontSize: '13px', letterSpacing: '1px' }}>
+                    Invoice
+                  </div>
+
+                  {/* Seller & Invoice Details Grid */}
+                  <div className="grid grid-cols-2" style={{ borderBottom: '1px solid #000' }}>
+
+                    {/* Left Column: Seller Details */}
+                    <div style={{ borderRight: '1px solid #000', padding: '8px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                      {/* Logo Container */}
+                      <div style={{ flexShrink: 0, textAlign: 'center', border: '1px solid #000', padding: '4px', borderRadius: '4px', backgroundColor: '#fff', width: '65px', height: '65px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img src="/assets/logo.png" alt="KSC Logo" style={{ display: 'block', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                      </div>
+
+                      {/* Company Info */}
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px', textTransform: 'uppercase', color: '#000' }}>KSC SOFA AND CHAIR HOUSE</div>
+                        <div style={{ fontSize: '9px', lineHeight: '1.3', marginTop: '2px', color: '#000' }}>
+                          MALTEKDI RAILWAY STATION ROAD,<br />
+                          NEAR RAILWAY UNDER BRIDGE, MAHBOOB NAGAR ROAD,<br />
+                          NANDED, MAHARASHTRA - 431601<br />
+                          State Name: Maharashtra, Code: 27<br />
+                          Contact: 9028887909
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Invoice Details */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: 0 }}>
+                      <div style={{ borderRight: '1px solid #000', borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Invoice No.</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}>{previewInvoice.id}</div>
+                      </div>
+                      <div style={{ borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Dated</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}>{previewInvoice.date}</div>
+                      </div>
+                      <div style={{ borderRight: '1px solid #000', borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Delivery Note</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Mode/Terms of Payment</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderRight: '1px solid #000', borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Supplier's Ref.</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Other Reference(s)</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderRight: '1px solid #000', borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Buyer's Order No.</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Dated</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderRight: '1px solid #000', borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Dispatch Doc No.</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderBottom: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Delivery Note Date</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ borderRight: '1px solid #000', padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Dispatched through</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}></div>
+                      </div>
+                      <div style={{ padding: '4px', minHeight: '35px' }}>
+                        <div style={{ fontSize: '8px', color: '#555' }}>Destination</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '10px' }}>{previewInvoice.customerAddress ? "NANDED" : ""}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Buyer & Place of Supply */}
+                  <div className="grid grid-cols-2" style={{ borderBottom: '1px solid #000', minHeight: '80px' }}>
+                    <div style={{ borderRight: '1px solid #000', padding: '6px' }}>
+                      <div style={{ fontSize: '8px', color: '#555' }}>Buyer (Bill to)</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase', marginTop: '2px' }}>
+                        {previewInvoice.customerName || "Walk-in Customer"}
+                      </div>
+                      <div style={{ fontSize: '9px', lineHeight: '1.3', marginTop: '2px' }}>
+                        {previewInvoice.customerAddress || "Nanded"}
+                        {previewInvoice.customerPhone && <><br />Mob: {previewInvoice.customerPhone}</>}
+                      </div>
+                      <div style={{ fontSize: '9px', marginTop: '4px' }}>
+                        State Name: Maharashtra, Code: 27
+                      </div>
+                    </div>
+                    <div style={{ padding: '6px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                      <div style={{ fontSize: '9px', marginBottom: '4px' }}>
+                        Place of Supply: Maharashtra
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000' }}>
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="p-3 font-semibold text-slate-600 uppercase text-[10px] tracking-wider">Item Details</th>
-                        <th className="p-3 font-semibold text-slate-600 uppercase text-[10px] tracking-wider text-right w-[60px]">Qty</th>
-                        <th className="p-3 font-semibold text-slate-600 uppercase text-[10px] tracking-wider text-right w-[110px]">Price</th>
-                        <th className="p-3 font-semibold text-slate-600 uppercase text-[10px] tracking-wider text-right w-[120px]">Total</th>
+                      <tr style={{ borderBottom: '1px solid #000', fontSize: '8px', textTransform: 'uppercase', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f9f9f9' }}>
+                        <th style={{ width: '5%', borderRight: '1px solid #000', padding: '4px' }}>Sl No.</th>
+                        <th style={{ width: '63%', borderRight: '1px solid #000', padding: '4px', textAlign: 'left' }}>Description of Goods</th>
+                        <th style={{ width: '12%', borderRight: '1px solid #000', padding: '4px', textAlign: 'right' }}>Quantity</th>
+                        <th style={{ width: '10%', borderRight: '1px solid #000', padding: '4px', textAlign: 'right' }}>Rate</th>
+                        <th style={{ width: '10%', padding: '4px', textAlign: 'right' }}>Amount</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {previewInvoice.items.map((item) => (
-                        <tr key={item.id} className="border-b border-slate-100">
-                          <td className="p-3 font-medium text-slate-800">{item.name}</td>
-                          <td className="p-3 text-right text-slate-600">{item.quantity}</td>
-                          <td className="p-3 text-right text-slate-600">₹{item.price.toLocaleString("en-IN")}</td>
-                          <td className="p-3 text-right font-semibold text-slate-900">
-                            ₹{(item.quantity * item.price).toLocaleString("en-IN")}
-                          </td>
-                        </tr>
-                      ))}
+                      {/* Dynamically calculated values for existing previewInvoice */}
+                      {(() => {
+                        const subtotal = previewInvoice.items.reduce((s, i) => s + i.quantity * i.price, 0);
+                        const totalQty = previewInvoice.items.reduce((s, i) => s + i.quantity, 0);
+                        const discount = previewInvoice.discount || 0;
+                        const cgst = 0;
+                        const sgst = 0;
+                        const totalBeforeRoundOff = subtotal - discount;
+                        const grandTotal = Math.round(totalBeforeRoundOff);
+                        const roundOff = grandTotal - totalBeforeRoundOff;
+
+                        const getItemUnit = (name: string) => {
+                          const n = name.toLowerCase();
+                          if (n.includes("mtr") || n.includes("fabric") || n.includes("lace") || n.includes("curtain")) return "";
+                          return "PCS";
+                        };
+
+                        const formatQty = (qty: number, unit: string) => {
+                          if (unit === "PCS") return qty.toString();
+                          return qty.toFixed(2);
+                        };
+
+                        const hasMtr = previewInvoice.items.some(item => getItemUnit(item.name) === "");
+                        const formattedTotalQty = hasMtr ? totalQty.toFixed(2) : totalQty.toString();
+
+                        return (
+                          <>
+                            {previewInvoice.items.map((item, idx) => {
+                              const unit = getItemUnit(item.name);
+                              return (
+                                <tr key={item.id} style={{ fontSize: '10px', verticalAlign: 'top' }}>
+                                  <td style={{ borderRight: '1px solid #000', padding: '4px', textAlign: 'center' }}>{idx + 1}</td>
+                                  <td style={{ borderRight: '1px solid #000', padding: '4px', fontWeight: 'bold' }}>{item.name}</td>
+                                  <td style={{ borderRight: '1px solid #000', padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>{formatQty(item.quantity, unit)}{unit ? ' ' + unit : ''}</td>
+                                  <td style={{ borderRight: '1px solid #000', padding: '4px', textAlign: 'right' }}>{item.price.toFixed(2)}</td>
+                                  <td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>{formatINR(item.quantity * item.price)}</td>
+                                </tr>
+                              );
+                            })}
+
+                            {/* Discount, Round-Off inside Description of Goods */}
+                            <tr style={{ fontSize: '10px', verticalAlign: 'top' }}>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px', height: '110px' }}></td>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px', textAlign: 'right', fontWeight: 'bold', fontStyle: 'italic' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', minHeight: '90px', paddingBottom: '4px', lineHeight: '1.6' }}>
+                                  {discount > 0 && <div>LESS: DISCOUNT</div>}
+                                  <div>ROUND OFF</div>
+                                </div>
+                              </td>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px' }}></td>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px' }}></td>
+                              <td style={{ padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', minHeight: '90px', paddingBottom: '4px', lineHeight: '1.6' }}>
+                                  {discount > 0 && <div style={{ color: '#ef4444' }}>(-){formatINR(discount)}</div>}
+                                  <div>{roundOff >= 0 ? "" : "(-)"}{Math.abs(roundOff).toFixed(2)}</div>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* Total Row */}
+                            <tr style={{ borderTop: '1px solid #000', fontSize: '10px', fontWeight: 'bold', backgroundColor: '#f9f9f9' }}>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px' }}></td>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px', textAlign: 'right' }}>Total</td>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px', textAlign: 'right' }}>{formattedTotalQty}</td>
+                              <td style={{ borderRight: '1px solid #000', padding: '4px' }}></td>
+                              <td style={{ padding: '4px', textAlign: 'right', fontSize: '11px', fontWeight: '900' }}>₹ {formatINR(grandTotal)}</td>
+                            </tr>
+                          </>
+                        );
+                      })()}
                     </tbody>
                   </table>
+
+                  {/* Words, Balance & E. & O.E. */}
+                  {(() => {
+                    const subtotal = previewInvoice.items.reduce((s, i) => s + i.quantity * i.price, 0);
+                    const discount = previewInvoice.discount || 0;
+                    const grandTotal = Math.round(subtotal - discount);
+                    const { previousBalance, currentBalance } = getInvoiceBalanceDetails(previewInvoice);
+                    
+                    return (
+                      <>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000', fontSize: '10px' }}>
+                          <tbody>
+                            <tr>
+                              <td style={{ padding: '6px', verticalAlign: 'top' }}>
+                                <div style={{ color: '#555', fontSize: '8px' }}>Amount Chargeable (in words)</div>
+                                <div style={{ fontWeight: 'bold', marginTop: '2px', fontSize: '10px', textTransform: 'capitalize' }}>
+                                  {numberToWords(grandTotal)}
+                                </div>
+                              </td>
+                              <td style={{ width: '35%', borderLeft: '1px solid #000', padding: '6px', verticalAlign: 'top', textAlign: 'right' }}>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* Bank Details & Signature Section */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderBottom: '1px solid #000', fontSize: '10px' }}>
+                          <tbody>
+                            <tr>
+                              {/* Bank Info Left */}
+                              <td style={{ width: '55%', borderRight: '1px solid #000', padding: '6px', verticalAlign: 'top' }}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                  <div>
+                                    <div style={{ fontWeight: 'bold', borderBottom: '1px dashed #000', paddingBottom: '1px', marginBottom: '3px' }}>Company's Bank Details</div>
+                                    <div>Bank Name: &nbsp; &nbsp; &nbsp; &nbsp; <strong style={{ fontWeight: 'bold' }}>Bank of Baroda</strong></div>
+                                    <div>A/c Name: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <strong style={{ fontWeight: 'bold' }}>KSC sofa and chair house</strong></div>
+                                    <div>A/c No.: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<strong style={{ fontWeight: 'bold' }}>08600200007446</strong></div>
+                                    <div>Branch & IFS Code: <strong style={{ fontWeight: 'bold' }}>NANDED & BARB0NANDED</strong></div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Balance Details Right */}
+                              <td style={{ width: '45%', padding: '6px', verticalAlign: 'top' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                                  <tbody>
+                                    <tr>
+                                      <td style={{ padding: '1px 0', color: '#555' }}>Party Previous Balance</td>
+                                      <td style={{ textAlign: 'right', padding: '1px 0' }}>:</td>
+                                      <td style={{ textAlign: 'right', padding: '1px 0', fontWeight: 'bold' }}>{formatINR(previousBalance)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={{ padding: '1px 0', color: '#555' }}>Current Bill</td>
+                                      <td style={{ textAlign: 'right', padding: '1px 0' }}>:</td>
+                                      <td style={{ textAlign: 'right', padding: '1px 0', fontWeight: 'bold' }}>{formatINR(grandTotal)}</td>
+                                    </tr>
+                                    <tr style={{ borderTop: '1px solid #000' }}>
+                                      <td style={{ padding: '3px 0', fontWeight: 'bold' }}>Total Amount</td>
+                                      <td style={{ textAlign: 'right', padding: '3px 0' }}>:</td>
+                                      <td style={{ textAlign: 'right', padding: '3px 0', fontWeight: '900', fontSize: '11px' }}>{formatINR(currentBalance)}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* Signatures */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', borderTop: '1px solid #000', fontSize: '10px', height: '65px' }}>
+                          <tbody>
+                            <tr>
+                              <td style={{ width: '50%', borderRight: '1px solid #000', padding: '6px', verticalAlign: 'top' }}>
+                                <div style={{ color: '#555', fontSize: '8px' }}>Customer's Seal and Signature</div>
+                              </td>
+                              <td style={{ width: '50%', padding: '6px', verticalAlign: 'top', textAlign: 'right', height: '65px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: '55px' }}>
+                                  <div style={{ fontStyle: 'italic', fontSize: '9px' }}>for KSC SOFA AND CHAIR HOUSE</div>
+                                  <div style={{ fontWeight: 'bold', fontSize: '10px' }}>Authorised Signatory</div>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </>
+                    );
+                  })()}
+
+                  {/* Computer Generated Notice */}
+                  <div style={{ borderTop: '1px solid #000', textAlign: 'center', padding: '3px 0', fontSize: '8px', color: '#555', backgroundColor: '#f9f9f9' }}>
+                    This is a Computer Generated Invoice
+                  </div>
+
                 </div>
 
-                {/* Summary & Note */}
-                <div className="flex flex-col md:flex-row gap-6 justify-between items-start">
-                  <div className="flex-1 max-w-sm">
-                    {previewInvoice.notes ? (
-                      <div className="rounded-lg bg-slate-50/50 p-4 border border-slate-100">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                          Terms & Notes:
-                        </span>
-                        <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                          {previewInvoice.notes}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-slate-400 italic">
-                        No custom notes printed on this invoice.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="w-full md:w-[240px] space-y-2 border-t md:border-t-0 border-slate-100 pt-4 md:pt-0">
-                    <div className="flex justify-between text-xs text-slate-500">
-                      <span>Subtotal:</span>
-                      <span className="font-semibold">
-                        ₹{previewInvoice.items.reduce((s, i) => s + i.quantity * i.price, 0).toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                    {previewInvoice.discount > 0 && (
-                      <div className="flex justify-between text-xs text-red-500 font-medium">
-                        <span>Discount:</span>
-                        <span>- ₹{previewInvoice.discount.toLocaleString("en-IN")}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                      <span className="text-sm font-bold text-slate-900">Total:</span>
-                      <span className="font-serif text-lg font-black text-slate-950">
-                        ₹{previewInvoice.total.toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Signature */}
-                <div className="flex justify-between items-end pt-12 text-xs">
-                  <div className="text-slate-400">
-                    Thank you for your business!
-                  </div>
-                  <div className="text-center w-[160px] border-t border-slate-300 pt-1.5 font-medium text-slate-500">
-                    Authorized Signatory
-                  </div>
-                </div>
               </div>
             </>
           )}
